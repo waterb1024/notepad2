@@ -27,6 +27,7 @@ export type ResearchService = {
   name: string;
   tagline: string;
   problem: string;
+  category?: string;
 };
 
 export type ResearchOpportunity = {
@@ -34,6 +35,7 @@ export type ResearchOpportunity = {
   title: string;
   rationale: string;
   difficultyNotes: string;
+  estimatedWeeks?: number;
 };
 
 export type ProductHuntResearchData = {
@@ -58,6 +60,8 @@ export type WeeklyReportSummary = {
   report_date: string;
   collectionSummary: string;
   topThemes: string[];
+  allCommonalities: string[];
   topOpportunityTitle: string | null;
+  serviceCount: number;
   created_at: number;
 };

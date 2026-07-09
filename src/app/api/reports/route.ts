@@ -31,7 +31,9 @@ export async function GET() {
       report_date: String(r.report_date),
       collectionSummary: data.collectionSummary ?? "",
       topThemes: (data.commonalities ?? []).slice(0, 3),
+      allCommonalities: data.commonalities ?? [],
       topOpportunityTitle: top,
+      serviceCount: data.serviceList?.length ?? 0,
       created_at: Number(r.created_at),
     };
   });
