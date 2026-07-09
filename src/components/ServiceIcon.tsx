@@ -88,7 +88,7 @@ export default function ServiceIcon({ service, size = 32, className }: Props) {
       style={dim}
       className={`rounded-md grid place-items-center text-white text-[0.6em] font-bold ${bgColor(service.name)} ${className ?? ""}`}
     >
-      <span style={{ fontSize: Math.max(10, size * 0.4) }}>{initials(service.name)}</span>
+      <span style={{ fontSize: Math.max(12, size * 0.4) }}>{initials(service.name)}</span>
     </div>
   );
 }

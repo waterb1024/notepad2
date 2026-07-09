@@ -36,7 +36,7 @@ function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full max-w-sm bg-white border border-neutral-200 rounded-2xl p-8 shadow-sm"
+      className="w-full max-w-sm bg-white border border-black/[0.06] rounded-2xl p-8 shadow-[0_2px_12px_rgba(23,23,23,0.04)]"
     >
       <div className="mb-6">
         <div className="text-2xl font-semibold text-neutral-900">🔬 PH Weekly Research</div>
@@ -65,7 +65,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen grid place-items-center bg-neutral-100">
+    <div className="min-h-[100dvh] grid place-items-center">
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>

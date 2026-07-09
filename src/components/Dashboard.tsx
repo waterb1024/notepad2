@@ -104,7 +104,7 @@ export default function Dashboard() {
 
   if (loading || !reports || !aggregate) {
     return (
-      <div className="min-h-screen grid place-items-center text-neutral-400 text-sm bg-neutral-50">
+      <div className="min-h-[100dvh] grid place-items-center text-neutral-400 text-sm">
         불러오는 중...
       </div>
     );
@@ -113,8 +113,8 @@ export default function Dashboard() {
   const hasEnoughForTrend = aggregate.trend.length >= 2;
 
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white">
+    <main className="min-h-[100dvh]">
+      <header className="border-b border-black/[0.06] bg-white">
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-neutral-900">🔬 PH Weekly Research</h1>
@@ -149,8 +149,8 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={aggregate.trend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip contentStyle={{ fontSize: 12 }} />
                   <Line
                     type="monotone"
@@ -202,7 +202,7 @@ export default function Dashboard() {
 
         <h2 className="text-sm font-semibold text-neutral-700 mb-3">리포트</h2>
         {reports.length === 0 ? (
-          <div className="bg-white rounded-lg border border-dashed border-neutral-300 px-6 py-12 text-center">
+          <div className="bg-white rounded-xl border border-dashed border-neutral-300 px-6 py-12 text-center">
             <p className="text-sm text-neutral-500">
               아직 리포트가 없어요. 매주 스케줄된 원격 에이전트가 리포트를 생성합니다.
             </p>
@@ -213,11 +213,11 @@ export default function Dashboard() {
               <Link
                 key={r.id}
                 href={`/report/${r.id}`}
-                className="bg-white rounded-lg border border-neutral-200 hover:border-emerald-400 hover:shadow-sm px-5 py-4 transition"
+                className="bg-white rounded-xl border border-black/[0.06] hover:border-black/[0.14] hover:shadow-[0_2px_12px_rgba(23,23,23,0.05)] px-6 py-5 transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
               >
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-medium text-emerald-700">{r.report_date}</div>
-                  <div className="text-[11px] text-neutral-400">{daysAgo(r.created_at)}</div>
+                  <div className="text-xs text-neutral-400">{daysAgo(r.created_at)}</div>
                 </div>
                 <p className="text-sm text-neutral-800 mt-2 line-clamp-3">
                   {r.collectionSummary || "요약 없음"}
@@ -237,19 +237,19 @@ export default function Dashboard() {
                     {r.themeNames.slice(0, 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded truncate max-w-[140px]"
+                        className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded truncate max-w-[140px]"
                       >
                         {t}
                       </span>
                     ))}
                     {r.themeNames.length > 3 && (
-                      <span className="text-[10px] text-neutral-400">
+                      <span className="text-xs text-neutral-400">
                         +{r.themeNames.length - 3}
                       </span>
                     )}
                   </div>
                 )}
-                <div className="mt-3 text-[10px] text-neutral-400 flex justify-between">
+                <div className="mt-3 text-xs text-neutral-400 flex justify-between">
                   <span>테마 {r.themeCount} · 서비스 {r.serviceCount}</span>
                   <span>{formatDate(r.created_at)}</span>
                 </div>
@@ -274,19 +274,19 @@ function Kpi({
   valueClassName?: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-neutral-200 px-4 py-3">
+    <div className="bg-white rounded-xl border border-black/[0.06] px-4 py-3">
       <div className="text-xs text-neutral-500">{label}</div>
       <div className={`font-bold text-neutral-900 mt-0.5 ${valueClassName ?? "text-2xl"}`}>
         {value}
       </div>
-      {hint && <div className="text-[10px] text-neutral-400 mt-0.5">{hint}</div>}
+      {hint && <div className="text-xs text-neutral-400 mt-0.5">{hint}</div>}
     </div>
   );
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg border border-neutral-200 px-5 py-4">
+    <div className="bg-white rounded-xl border border-black/[0.06] px-6 py-5">
       <div className="text-xs font-semibold text-neutral-700 mb-3">{title}</div>
       {children}
     </div>
@@ -308,11 +308,11 @@ function HorizontalBar({ data }: { data: Array<{ label: string; count: number }>
         margin={{ top: 4, right: 12, left: 8, bottom: 0 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
         <YAxis
           type="category"
           dataKey="label"
-          tick={{ fontSize: 10 }}
+          tick={{ fontSize: 12 }}
           width={140}
           interval={0}
         />

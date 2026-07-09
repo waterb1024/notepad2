@@ -166,7 +166,7 @@ export default function ReportDetail({ id }: Props) {
 
   if (error) {
     return (
-      <main className="min-h-screen grid place-items-center bg-neutral-50">
+      <main className="min-h-[100dvh] grid place-items-center">
         <div className="text-sm text-neutral-500">
           {error} <Link href="/" className="text-emerald-700 underline ml-2">돌아가기</Link>
         </div>
@@ -176,7 +176,7 @@ export default function ReportDetail({ id }: Props) {
 
   if (!report) {
     return (
-      <main className="min-h-screen grid place-items-center text-neutral-400 text-sm bg-neutral-50">
+      <main className="min-h-[100dvh] grid place-items-center text-neutral-400 text-sm">
         불러오는 중...
       </main>
     );
@@ -189,8 +189,8 @@ export default function ReportDetail({ id }: Props) {
     : null;
 
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white sticky top-0 z-10">
+    <main className="min-h-[100dvh]">
+      <header className="border-b border-black/[0.06] bg-white sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
             ← 대시보드
@@ -229,15 +229,13 @@ export default function ReportDetail({ id }: Props) {
         </section>
 
         {fastest && data.fastestValidation && (
-          <section className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-300 rounded-lg px-5 py-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
-              🚀 가장 빠른 검증 경로
-            </div>
-            <div className="mt-1.5">
-              <span className="text-lg font-bold text-emerald-900">
+          <section className="bg-emerald-50/60 border border-emerald-200 rounded-xl px-6 py-5">
+            <div className="eyebrow text-emerald-700">🚀 가장 빠른 검증 경로</div>
+            <div className="mt-2">
+              <span className="text-lg font-semibold text-neutral-900">
                 {fastest.rank}위 — {fastest.title}
               </span>
-              <p className="text-sm text-emerald-800 mt-1.5 leading-relaxed">
+              <p className="text-sm text-neutral-700 mt-2 leading-relaxed">
                 {data.fastestValidation.rationale}
               </p>
             </div>
@@ -268,7 +266,7 @@ export default function ReportDetail({ id }: Props) {
                       ))}
                     </Pie>
                     <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -280,11 +278,11 @@ export default function ReportDetail({ id }: Props) {
                     margin={{ top: 4, right: 30, left: 8, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
                     <YAxis
                       type="category"
                       dataKey="name"
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: 12 }}
                       width={140}
                       interval={0}
                     />
@@ -293,7 +291,7 @@ export default function ReportDetail({ id }: Props) {
                       {themeDistribution.map((_, i) => (
                         <Cell key={i} fill={THEME_PALETTE[i % THEME_PALETTE.length]} />
                       ))}
-                      <LabelList dataKey="count" position="right" style={{ fontSize: 11 }} />
+                      <LabelList dataKey="count" position="right" style={{ fontSize: 12 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -307,8 +305,8 @@ export default function ReportDetail({ id }: Props) {
             title={`2. 서비스 테이블 (${filteredServices.length}/${allServices.length})`}
             caption="테마별 필터 · 컬럼 클릭으로 정렬"
           />
-          <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-            <div className="border-b border-neutral-200 px-4 py-3 bg-neutral-50 flex items-center gap-3 flex-wrap">
+          <div className="bg-white border border-black/[0.06] rounded-xl overflow-hidden">
+            <div className="border-b border-black/[0.06] px-4 py-3 bg-black/[0.02] flex items-center gap-3 flex-wrap">
               <div className="text-xs text-neutral-500">테마 필터:</div>
               <select
                 value={themeFilter}
@@ -325,7 +323,7 @@ export default function ReportDetail({ id }: Props) {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-neutral-50 text-neutral-500 text-xs">
+                <thead className="bg-black/[0.02] text-neutral-500 text-xs">
                   <tr>
                     <Th
                       label="이름"
@@ -354,7 +352,7 @@ export default function ReportDetail({ id }: Props) {
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
                   {filteredServices.map((s, i) => (
-                    <tr key={`${s.name}-${i}`} className="hover:bg-neutral-50">
+                    <tr key={`${s.name}-${i}`} className="hover:bg-black/[0.02]">
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <ServiceIcon service={s} size={20} />
@@ -417,7 +415,7 @@ export default function ReportDetail({ id }: Props) {
               {data.commonalities.map((c) => (
                 <div
                   key={c.order}
-                  className="bg-white border border-neutral-200 rounded-lg px-5 py-4"
+                  className="bg-white border border-black/[0.06] rounded-xl px-6 py-5"
                 >
                   <div className="w-8 h-8 grid place-items-center bg-emerald-600 text-white text-sm font-bold rounded-full">
                     {c.order}
@@ -450,18 +448,18 @@ export default function ReportDetail({ id }: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                   <XAxis
                     type="number"
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
                     label={{
                       value: "$B",
                       position: "insideBottomRight",
                       offset: -4,
-                      fontSize: 11,
+                      fontSize: 12,
                     }}
                   />
                   <YAxis
                     type="category"
                     dataKey="name"
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
                     width={140}
                     interval={0}
                   />
@@ -479,21 +477,21 @@ export default function ReportDetail({ id }: Props) {
                       ];
                     }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="2024" fill="#94a3b8" radius={[0, 3, 3, 0]} />
                   <Bar dataKey="2030" fill="#059669" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
           ) : (
-            <div className="bg-white border border-neutral-200 rounded-lg px-5 py-4 text-sm text-neutral-500">
+            <div className="bg-white border border-black/[0.06] rounded-xl px-6 py-5 text-sm text-neutral-500">
               시장 규모 세그먼트 데이터 없음
             </div>
           )}
           {data.marketSize.koreaContext && (
-            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-5 py-4">
-              <div className="text-xs font-semibold text-amber-800">🇰🇷 한국 맥락</div>
-              <p className="text-sm text-amber-900 mt-1.5 leading-relaxed">
+            <div className="mt-4 bg-amber-50/60 border border-amber-200 rounded-xl px-6 py-5">
+              <div className="eyebrow text-amber-800">🇰🇷 한국 맥락</div>
+              <p className="text-sm text-neutral-800 mt-2 leading-relaxed">
                 {data.marketSize.koreaContext}
               </p>
             </div>
@@ -519,12 +517,12 @@ export default function ReportDetail({ id }: Props) {
                       name="난이도"
                       domain={[0.5, 5.5]}
                       ticks={[1, 2, 3, 4, 5]}
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 12 }}
                       label={{
                         value: "난이도 (별점) →",
                         position: "insideBottom",
                         offset: -18,
-                        fontSize: 11,
+                        fontSize: 12,
                       }}
                     />
                     <YAxis
@@ -533,12 +531,12 @@ export default function ReportDetail({ id }: Props) {
                       name="기회"
                       domain={[0, 10]}
                       ticks={[0, 2, 4, 6, 8, 10]}
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 12 }}
                       label={{
                         value: "↑ 기회 점수",
                         angle: -90,
                         position: "insideLeft",
-                        fontSize: 11,
+                        fontSize: 12,
                       }}
                     />
                     <ZAxis range={[220, 220]} />
@@ -566,7 +564,7 @@ export default function ReportDetail({ id }: Props) {
                       <LabelList
                         dataKey="rank"
                         position="top"
-                        style={{ fontSize: 11, fontWeight: "bold" }}
+                        style={{ fontSize: 12, fontWeight: "bold" }}
                       />
                     </Scatter>
                   </ScatterChart>
@@ -582,7 +580,7 @@ export default function ReportDetail({ id }: Props) {
                     return (
                       <div
                         key={o.rank}
-                        className="bg-white border border-neutral-200 rounded-lg px-5 py-4 hover:shadow-sm transition"
+                        className="bg-white border border-black/[0.06] rounded-xl px-6 py-5 hover:border-black/[0.14] hover:shadow-[0_2px_12px_rgba(23,23,23,0.05)] transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
                       >
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <div className="flex items-center gap-3">
@@ -608,19 +606,15 @@ export default function ReportDetail({ id }: Props) {
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                          <div className="bg-sky-50 border border-sky-200 rounded px-3 py-2.5">
-                            <div className="text-[11px] font-semibold text-sky-800">
-                              📈 올라탄 트렌드
-                            </div>
-                            <p className="text-sm text-sky-900 mt-1 leading-relaxed">
+                          <div className="bg-black/[0.02] border border-black/[0.06] rounded-lg px-3.5 py-3">
+                            <div className="eyebrow text-sky-700">📈 올라탄 트렌드</div>
+                            <p className="text-sm text-neutral-800 mt-1.5 leading-relaxed">
                               {o.ridingTrend || "—"}
                             </p>
                           </div>
-                          <div className="bg-red-50 border border-red-200 rounded px-3 py-2.5">
-                            <div className="text-[11px] font-semibold text-red-800">
-                              🇰🇷 한국 공백 포인트
-                            </div>
-                            <p className="text-sm text-red-900 mt-1 leading-relaxed">
+                          <div className="bg-black/[0.02] border border-black/[0.06] rounded-lg px-3.5 py-3">
+                            <div className="eyebrow text-red-700">🇰🇷 한국 공백 포인트</div>
+                            <p className="text-sm text-neutral-800 mt-1.5 leading-relaxed">
                               {o.koreaGap || "—"}
                             </p>
                           </div>
@@ -632,11 +626,11 @@ export default function ReportDetail({ id }: Props) {
                         )}
                         {o.relatedServices && o.relatedServices.length > 0 && (
                           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] text-neutral-500">관련:</span>
+                            <span className="text-xs text-neutral-500">관련:</span>
                             {o.relatedServices.map((s) => (
                               <span
                                 key={s}
-                                className="text-[10px] bg-neutral-100 border border-neutral-200 text-neutral-700 px-1.5 py-0.5 rounded"
+                                className="text-xs bg-neutral-100 border border-black/[0.06] text-neutral-700 px-1.5 py-0.5 rounded"
                               >
                                 {s}
                               </span>
@@ -652,7 +646,7 @@ export default function ReportDetail({ id }: Props) {
         </section>
 
         {data.notes && (
-          <section className="bg-neutral-100 border border-neutral-200 rounded-lg px-5 py-4">
+          <section className="bg-neutral-100 border border-black/[0.06] rounded-xl px-6 py-5">
             <div className="text-xs font-semibold text-neutral-700">📝 메모</div>
             <p className="whitespace-pre-line text-xs text-neutral-600 mt-2 leading-relaxed">
               {data.notes}
@@ -717,12 +711,12 @@ function Kpi({
   valueClassName?: string;
 }) {
   return (
-    <div className="bg-white border border-neutral-200 rounded-lg px-4 py-3">
+    <div className="bg-white border border-black/[0.06] rounded-xl px-4 py-3">
       <div className="text-xs text-neutral-500">{label}</div>
       <div className={`font-bold text-neutral-900 mt-0.5 ${valueClassName ?? "text-2xl"}`}>
         {value}
       </div>
-      {hint && <div className="text-[10px] text-neutral-400 mt-0.5 truncate">{hint}</div>}
+      {hint && <div className="text-xs text-neutral-400 mt-0.5 truncate">{hint}</div>}
     </div>
   );
 }
@@ -738,7 +732,7 @@ function SectionTitle({ title, caption }: { title: string; caption?: string }) {
 
 function ChartCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg border border-neutral-200 px-5 py-4">{children}</div>
+    <div className="bg-white rounded-xl border border-black/[0.06] px-6 py-5">{children}</div>
   );
 }
 
