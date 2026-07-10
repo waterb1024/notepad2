@@ -60,9 +60,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* min font 11px */
+/* min font 11px — safety net for any bracket notation below 11 */
 .text-\[10px\],
-.text-\[9px\] {
+.text-\[9px\],
+.text-\[8px\],
+.text-\[7px\] {
+  font-size: 11px !important;
+}
+.text-\[11px\] {
   font-size: 11px !important;
 }
 .text-xs {
@@ -75,10 +80,10 @@ body {
 
 /* editorial micro-label */
 .eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.11em;
   color: var(--text-faint);
 }
 
@@ -103,6 +108,13 @@ body {
   border-radius: 14px;
   padding: 28px;
 }
+@media (max-width: 640px) {
+  .card,
+  .card-flat {
+    padding: 18px;
+    border-radius: 12px;
+  }
+}
 .card-hover {
   transition:
     box-shadow var(--transition),
@@ -123,6 +135,12 @@ body {
   border-radius: 20px;
   padding: 36px;
   box-shadow: var(--shadow-hero);
+}
+@media (max-width: 640px) {
+  .hero {
+    padding: 22px;
+    border-radius: 16px;
+  }
 }
 
 /* subtle inline divider using bg contrast, no border */
@@ -163,6 +181,11 @@ body {
 /* section spacing */
 .section-stack > * + * {
   margin-top: 56px;
+}
+@media (max-width: 640px) {
+  .section-stack > * + * {
+    margin-top: 40px;
+  }
 }
 
 /* focus visible ring */

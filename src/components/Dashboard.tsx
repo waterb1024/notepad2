@@ -114,7 +114,7 @@ export default function Dashboard() {
   return (
     <main className="min-h-[100dvh]">
       <header className="bg-[color:var(--bg)]/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-5 flex items-center justify-between gap-4">
           <div className="text-neutral-900">
             <Logo size={22} />
           </div>
@@ -124,7 +124,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-8 py-10 section-stack">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 section-stack">
         {aggregate.latest ? (
           <HeroLatest report={aggregate.latest} />
         ) : (
@@ -585,12 +585,12 @@ function DashboardSkeleton() {
   return (
     <main className="min-h-[100dvh]">
       <header className="bg-[color:var(--bg)]/80 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-8 py-5">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-5">
           <div className="h-3 w-32 bg-black/[0.06] rounded animate-pulse" />
           <div className="h-6 w-56 bg-black/[0.06] rounded animate-pulse mt-3" />
         </div>
       </header>
-      <div className="max-w-6xl mx-auto px-8 py-10 section-stack">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 section-stack">
         <div className="card" style={{ padding: "32px" }}>
           <div className="h-5 w-24 bg-black/[0.06] rounded animate-pulse" />
           <div className="h-8 w-96 max-w-full bg-black/[0.08] rounded animate-pulse mt-4" />
