@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 next dev -p 8080",
     "build": "next build",
-    "start": "next start -p ${PORT:-8080}",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
     "lint": "next lint",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts"
   },
