@@ -11,16 +11,6 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function extractDomain(url?: string): string | null {
-  if (!url) return null;
-  try {
-    const withProto = url.startsWith("http") ? url : `https://${url}`;
-    return new URL(withProto).hostname.replace(/^www\./, "");
-  } catch {
-    return null;
-  }
-}
-
 function bgColor(name: string): string {
   const palette = [
     "bg-emerald-500",
@@ -39,6 +29,15 @@ function bgColor(name: string): string {
   return palette[Math.abs(hash) % palette.length];
 }
 
+function resolverUrl(service: ThemeService): string | null {
+  const params = new URLSearchParams();
+  if (service.productHuntUrl) params.set("ph", service.productHuntUrl);
+  if (service.websiteUrl) params.set("web", service.websiteUrl);
+  if (service.name) params.set("name", service.name);
+  if ([...params.keys()].length === 0) return null;
+  return `/api/service-icon?${params.toString()}`;
+}
+
 type Props = {
   service: ThemeService;
   size?: number;
@@ -46,17 +45,13 @@ type Props = {
 };
 
 export default function ServiceIcon({ service, size = 32, className }: Props) {
-  const [errored, setErrored] = useState<{ direct: boolean; favicon: boolean }>({
-    direct: false,
-    favicon: false,
-  });
-  const domain = extractDomain(service.websiteUrl);
-  const useDirect = !!service.iconUrl && !errored.direct;
-  const useFavicon = !useDirect && !!domain && !errored.favicon;
+  const [step, setStep] = useState<"direct" | "resolver" | "fallback">(
+    service.iconUrl ? "direct" : resolverUrl(service) ? "resolver" : "fallback",
+  );
 
   const dim = { width: size, height: size };
 
-  if (useDirect) {
+  if (step === "direct" && service.iconUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -64,29 +59,32 @@ export default function ServiceIcon({ service, size = 32, className }: Props) {
         alt={service.name}
         style={dim}
         className={`rounded-md object-cover bg-neutral-100 ${className ?? ""}`}
-        onError={() => setErrored((e) => ({ ...e, direct: true }))}
+        onError={() => setStep(resolverUrl(service) ? "resolver" : "fallback")}
       />
     );
   }
 
-  if (useFavicon) {
-    const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain!)}&sz=64`;
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={service.name}
-        style={dim}
-        className={`rounded-md object-contain bg-neutral-100 p-0.5 ${className ?? ""}`}
-        onError={() => setErrored((e) => ({ ...e, favicon: true }))}
-      />
-    );
+  if (step === "resolver") {
+    const src = resolverUrl(service);
+    if (src) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={service.name}
+          style={dim}
+          className={`rounded-md object-cover bg-neutral-100 ${className ?? ""}`}
+          onError={() => setStep("fallback")}
+          loading="lazy"
+        />
+      );
+    }
   }
 
   return (
     <div
       style={dim}
-      className={`rounded-md grid place-items-center text-white text-[0.6em] font-bold ${bgColor(service.name)} ${className ?? ""}`}
+      className={`rounded-md grid place-items-center text-white font-bold ${bgColor(service.name)} ${className ?? ""}`}
     >
       <span style={{ fontSize: Math.max(12, size * 0.4) }}>{initials(service.name)}</span>
     </div>

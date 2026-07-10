@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #fbfbfa;
-  --bg-surface: #ffffff;
-  --bg-muted: #f4f4f2;
-  --border-subtle: rgba(23, 23, 23, 0.08);
-  --border-strong: rgba(23, 23, 23, 0.14);
-  --text-primary: #111111;
-  --text-secondary: #525252;
-  --text-tertiary: #a3a3a3;
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --muted: #f2efe8;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --text: #0a0a0a;
+  --text-muted: #454545;
+  --text-faint: #8a8a8a;
   --accent: #059669;
   --accent-soft: #ecfdf5;
-  --transition-standard: 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html,
@@ -21,49 +21,87 @@ body,
 #__next {
   height: 100%;
 }
+
 body {
-  background: var(--bg-base);
-  color: var(--text-primary);
+  background: var(--bg);
+  color: var(--text);
   font-family: "Pretendard Variable", "Pretendard", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
+    BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
   line-height: 1.55;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
 }
 
-/* enforce minimum readable font size project-wide */
+/* enforce project-wide minimum font size (12px) + bump text-xs to 13px for readability */
 .text-\[10px\],
 .text-\[11px\],
 .text-\[9px\] {
   font-size: 12px !important;
 }
+.text-xs {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+.text-sm {
+  font-size: 14px !important;
+}
 
-/* editorial eyebrow label */
+/* uppercase micro-label — editorial */
 .eyebrow {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
 }
 
-/* refined card surface */
-.surface {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+/* headline tracking — pull tight for editorial feel */
+.headline-tight {
+  letter-spacing: -0.028em;
+}
+.display {
+  letter-spacing: -0.032em;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+/* consistent card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+}
+.card-hover {
   transition:
-    border-color var(--transition-standard),
-    box-shadow var(--transition-standard);
+    border-color var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
 }
-.surface-hover:hover {
+.card-hover:hover {
   border-color: var(--border-strong);
-  box-shadow: 0 2px 12px rgba(23, 23, 23, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.card-hover:active {
+  transform: translateY(1px);
 }
 
-/* muted table row */
-.table-row-hover:hover {
-  background: var(--bg-muted);
+/* section spacing — editorial pacing */
+.section-stack > * + * {
+  margin-top: 56px;
+}
+
+/* horizontal editorial divider under section headers */
+.section-rule {
+  border-bottom: 1px solid var(--border);
+}
+
+/* focus visible ring, accent-tinted */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }

@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -16,7 +13,11 @@ import {
 } from "recharts";
 import type { WeeklyReportSummary } from "@/lib/types";
 
-function formatDate(unix: number): string {
+const ACCENT = "#059669";
+const INK = "#0f0f0f";
+const LINE = "#e5e5e5";
+
+function formatDateLong(unix: number): string {
   const d = new Date(unix * 1000);
   return d.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
 }
@@ -27,22 +28,6 @@ function daysAgo(unix: number): string {
   if (diff === 1) return "어제";
   if (diff < 30) return `${diff}일 전`;
   return `${Math.floor(diff / 7)}주 전`;
-}
-
-const BAR_PALETTE = [
-  "#059669",
-  "#0891b2",
-  "#7c3aed",
-  "#db2777",
-  "#ea580c",
-  "#65a30d",
-  "#0284c7",
-  "#a16207",
-];
-
-function stars(n: number | null): string {
-  if (n == null) return "";
-  return "★".repeat(n) + "☆".repeat(Math.max(0, 5 - n));
 }
 
 export default function Dashboard() {
@@ -64,9 +49,12 @@ export default function Dashboard() {
 
   const aggregate = useMemo(() => {
     if (!reports) return null;
-    const total = reports.length;
-    const lastDate = reports[0]?.report_date ?? null;
-    const totalServices = reports.reduce((sum, r) => sum + r.serviceCount, 0);
+    const sorted = [...reports].sort((a, b) => b.report_date.localeCompare(a.report_date));
+    const latest = sorted[0] ?? null;
+    const previous = sorted[1] ?? null;
+
+    const deltaServices = latest && previous ? latest.serviceCount - previous.serviceCount : null;
+    const deltaThemes = latest && previous ? latest.themeCount - previous.themeCount : null;
 
     function bucket(pick: (r: WeeklyReportSummary) => string[]) {
       const counts = new Map<string, number>();
@@ -86,6 +74,13 @@ export default function Dashboard() {
     const commonalities = bucket((r) => r.commonalityHeadlines);
     const segments = bucket((r) => r.marketSegmentNames);
 
+    const risingThemes = latest
+      ? latest.themeNames
+          .map((t) => t.trim())
+          .filter((t) => t)
+          .filter((t) => !previous || !previous.themeNames.includes(t))
+      : [];
+
     const trend = [...reports]
       .sort((a, b) => a.report_date.localeCompare(b.report_date))
       .map((r) => ({
@@ -94,7 +89,19 @@ export default function Dashboard() {
         테마: r.themeCount,
       }));
 
-    return { total, lastDate, totalServices, themes, commonalities, segments, trend };
+    return {
+      latest,
+      previous,
+      deltaServices,
+      deltaThemes,
+      themes,
+      commonalities,
+      segments,
+      risingThemes,
+      trend,
+      total: reports.length,
+      totalServices: reports.reduce((sum, r) => sum + r.serviceCount, 0),
+    };
   }, [reports]);
 
   const handleLogout = useCallback(async () => {
@@ -103,226 +110,496 @@ export default function Dashboard() {
   }, []);
 
   if (loading || !reports || !aggregate) {
-    return (
-      <div className="min-h-[100dvh] grid place-items-center text-neutral-400 text-sm">
-        불러오는 중...
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
-  const hasEnoughForTrend = aggregate.trend.length >= 2;
+  const rest = reports.slice(1);
 
   return (
     <main className="min-h-[100dvh]">
-      <header className="border-b border-black/[0.06] bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+      <header className="border-b border-black/[0.06] bg-[color:var(--bg)]/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-8 py-6 flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-neutral-900">🔬 PH Weekly Research</h1>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              매주 자동 갱신되는 Product Hunt 상위 서비스 분석
-            </p>
+            <div className="eyebrow" style={{ color: ACCENT }}>
+              PH WEEKLY RESEARCH
+            </div>
+            <h1 className="text-2xl font-bold text-neutral-900 headline-tight mt-1.5">
+              주간 Product Hunt 분석
+            </h1>
           </div>
           <button
             onClick={handleLogout}
-            className="text-xs text-neutral-500 hover:text-neutral-800 transition"
+            className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
           >
             로그아웃
           </button>
         </div>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Kpi label="총 리포트" value={aggregate.total} />
-          <Kpi label="누적 서비스" value={aggregate.totalServices} />
-          <Kpi
-            label="최신 리포트"
-            value={aggregate.lastDate ?? "—"}
-            valueClassName="text-lg md:text-xl"
-          />
-          <Kpi label="추적 테마" value={aggregate.themes.length} hint="누적 고유 개수" />
-        </div>
+      <div className="max-w-6xl mx-auto px-8 py-10 section-stack">
+        {aggregate.latest ? (
+          <HeroLatest report={aggregate.latest} />
+        ) : (
+          <div className="card text-center py-16">
+            <div className="text-lg font-semibold text-neutral-900">아직 리포트가 없어요</div>
+            <p className="text-sm text-neutral-500 mt-2">
+              스케줄된 원격 에이전트가 매주 리포트를 생성합니다.
+            </p>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <ChartCard title="📈 주간 수집량 추이">
-            {hasEnoughForTrend ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={aggregate.trend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip contentStyle={{ fontSize: 12 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="서비스"
-                    stroke="#059669"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
+        {aggregate.latest && (
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <DeltaKpi
+              label="이번 주 서비스"
+              value={aggregate.latest.serviceCount}
+              delta={aggregate.deltaServices}
+            />
+            <DeltaKpi
+              label="이번 주 테마"
+              value={aggregate.latest.themeCount}
+              delta={aggregate.deltaThemes}
+            />
+            <TextKpi
+              label="새로 등장한 테마"
+              value={aggregate.risingThemes[0] ?? "—"}
+              hint={
+                aggregate.risingThemes.length > 1
+                  ? `외 ${aggregate.risingThemes.length - 1}개`
+                  : undefined
+              }
+            />
+            <TextKpi
+              label="누적"
+              value={`${aggregate.total}주 · ${aggregate.totalServices} 서비스`}
+            />
+          </section>
+        )}
+
+        <Section title="주간 추이" caption="서비스·테마 수의 시간 흐름">
+          <div className="card">
+            {aggregate.trend.length >= 2 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart
+                  data={aggregate.trend}
+                  margin={{ top: 8, right: 24, left: -16, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={LINE} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 13, fill: INK }}
+                    stroke={LINE}
+                  />
+                  <YAxis
+                    yAxisId="services"
+                    tick={{ fontSize: 13, fill: INK }}
+                    stroke={LINE}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    yAxisId="themes"
+                    orientation="right"
+                    tick={{ fontSize: 13, fill: INK }}
+                    stroke={LINE}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      fontSize: 13,
+                      borderRadius: 8,
+                      border: "1px solid rgba(0,0,0,0.08)",
+                    }}
                   />
                   <Line
+                    yAxisId="services"
+                    type="monotone"
+                    dataKey="서비스"
+                    stroke={ACCENT}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: ACCENT }}
+                  />
+                  <Line
+                    yAxisId="themes"
                     type="monotone"
                     dataKey="테마"
-                    stroke="#0891b2"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
+                    stroke={INK}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={{ r: 3, fill: INK }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart hint="2주 이상 쌓이면 트렌드가 보여요." />
+              <Empty hint="2주 이상 쌓이면 추이가 나타납니다." />
             )}
-          </ChartCard>
+          </div>
+        </Section>
 
-          <ChartCard title="🏆 반복 등장 테마 (상위 8)">
-            {aggregate.themes.length > 0 ? (
-              <HorizontalBar data={aggregate.themes.slice(0, 8)} />
-            ) : (
-              <EmptyChart hint="테마가 아직 없어요." />
-            )}
-          </ChartCard>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Section title="반복 테마" caption="자주 등장한 테마">
+            <div className="card">
+              {aggregate.themes.length > 0 ? (
+                <ChipCloud data={aggregate.themes.slice(0, 12)} />
+              ) : (
+                <Empty hint="아직 없음" />
+              )}
+            </div>
+          </Section>
+
+          <Section title="반복 문제 정의" caption="공통점 headline 빈도 순">
+            <div className="card">
+              {aggregate.commonalities.length > 0 ? (
+                <RankedList data={aggregate.commonalities.slice(0, 6)} />
+              ) : (
+                <Empty hint="아직 없음" />
+              )}
+            </div>
+          </Section>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-          <ChartCard title="💡 반복 등장 공통점 (상위 6)">
-            {aggregate.commonalities.length > 0 ? (
-              <HorizontalBar data={aggregate.commonalities.slice(0, 6)} />
-            ) : (
-              <EmptyChart hint="공통점이 아직 없어요." />
-            )}
-          </ChartCard>
-
-          <ChartCard title="📊 언급된 시장 세그먼트 (상위 8)">
+        <Section title="시장 세그먼트" caption="언급된 시장 (상위 10)">
+          <div className="card">
             {aggregate.segments.length > 0 ? (
-              <HorizontalBar data={aggregate.segments.slice(0, 8)} />
+              <ThemeDistributionChart
+                data={aggregate.segments.slice(0, 10).map((s) => ({
+                  name: s.label,
+                  count: s.count,
+                }))}
+              />
             ) : (
-              <EmptyChart hint="세그먼트가 아직 없어요." />
+              <Empty hint="아직 없음" />
             )}
-          </ChartCard>
-        </div>
+          </div>
+        </Section>
 
-        <h2 className="text-sm font-semibold text-neutral-700 mb-3">리포트</h2>
-        {reports.length === 0 ? (
-          <div className="bg-white rounded-xl border border-dashed border-neutral-300 px-6 py-12 text-center">
-            <p className="text-sm text-neutral-500">
-              아직 리포트가 없어요. 매주 스케줄된 원격 에이전트가 리포트를 생성합니다.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reports.map((r) => (
-              <Link
-                key={r.id}
-                href={`/report/${r.id}`}
-                className="bg-white rounded-xl border border-black/[0.06] hover:border-black/[0.14] hover:shadow-[0_2px_12px_rgba(23,23,23,0.05)] px-6 py-5 transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-medium text-emerald-700">{r.report_date}</div>
-                  <div className="text-xs text-neutral-400">{daysAgo(r.created_at)}</div>
-                </div>
-                <p className="text-sm text-neutral-800 mt-2 line-clamp-3">
-                  {r.collectionSummary || "요약 없음"}
-                </p>
-                {r.topOpportunityTitle && (
-                  <div className="mt-3 flex items-center gap-2 text-xs">
-                    <span className="text-neutral-600">🚀 1위 — {r.topOpportunityTitle}</span>
-                  </div>
-                )}
-                {r.topOpportunityStars != null && (
-                  <div className="mt-1 text-xs text-amber-600">
-                    난이도 <span className="tracking-tight">{stars(r.topOpportunityStars)}</span>
-                  </div>
-                )}
-                {r.themeNames.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {r.themeNames.slice(0, 3).map((t) => (
-                      <span
-                        key={t}
-                        className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded truncate max-w-[140px]"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                    {r.themeNames.length > 3 && (
-                      <span className="text-xs text-neutral-400">
-                        +{r.themeNames.length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className="mt-3 text-xs text-neutral-400 flex justify-between">
-                  <span>테마 {r.themeCount} · 서비스 {r.serviceCount}</span>
-                  <span>{formatDate(r.created_at)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
+        {rest.length > 0 && (
+          <Section title="지난 리포트" caption={`${rest.length}주`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rest.map((r) => (
+                <ReportCardLink key={r.id} r={r} />
+              ))}
+            </div>
+          </Section>
         )}
-      </section>
+      </div>
     </main>
   );
 }
 
-function Kpi({
+/* ---- subcomponents ---- */
+
+function HeroLatest({ report: r }: { report: WeeklyReportSummary }) {
+  return (
+    <Link
+      href={`/report/${r.id}`}
+      className="card card-hover block relative overflow-hidden"
+      style={{ padding: "32px" }}
+    >
+      <div className="flex items-center gap-3 flex-wrap">
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white"
+          style={{ background: ACCENT }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
+          최신 리포트
+        </span>
+        <span className="text-xs text-neutral-500 tabular-nums">
+          {r.report_date} · {daysAgo(r.created_at)}
+        </span>
+      </div>
+      <h2 className="display text-3xl md:text-4xl text-neutral-900 mt-5">
+        {r.topOpportunityTitle
+          ? `이번 주 Top Pick: ${r.topOpportunityTitle}`
+          : "이번 주의 리서치"}
+      </h2>
+      {r.collectionSummary && (
+        <p className="text-base text-neutral-700 mt-4 leading-relaxed max-w-3xl line-clamp-3">
+          {r.collectionSummary}
+        </p>
+      )}
+      <div className="mt-6 flex items-center gap-6 flex-wrap text-sm">
+        {r.fastestValidationTitle && (
+          <div>
+            <div className="text-xs text-neutral-500">가장 빠른 검증</div>
+            <div className="font-semibold text-neutral-900 mt-0.5">
+              {r.fastestValidationTitle}
+            </div>
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-4 text-xs text-neutral-500 tabular-nums">
+          <span>테마 {r.themeCount}</span>
+          <span>·</span>
+          <span>서비스 {r.serviceCount}</span>
+          <span
+            className="ml-2 font-semibold group-hover:translate-x-0.5 transition-transform"
+            style={{ color: ACCENT }}
+          >
+            리포트 보기 →
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function DeltaKpi({
   label,
   value,
-  hint,
-  valueClassName,
+  delta,
 }: {
   label: string;
-  value: number | string;
-  hint?: string;
-  valueClassName?: string;
+  value: number;
+  delta: number | null;
 }) {
+  const sign = delta == null ? null : delta > 0 ? "+" : delta < 0 ? "−" : "±";
+  const abs = delta == null ? 0 : Math.abs(delta);
+  const color = delta == null ? "#a3a3a3" : delta > 0 ? ACCENT : delta < 0 ? "#dc2626" : "#a3a3a3";
   return (
-    <div className="bg-white rounded-xl border border-black/[0.06] px-4 py-3">
+    <div className="card">
       <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`font-bold text-neutral-900 mt-0.5 ${valueClassName ?? "text-2xl"}`}>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-neutral-900 headline-tight tabular-nums">
+          {value}
+        </span>
+        {sign && (
+          <span
+            className="text-sm font-semibold tabular-nums"
+            style={{ color }}
+          >
+            {sign}
+            {abs}
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-neutral-400 mt-1">지난 주 대비</div>
+    </div>
+  );
+}
+
+function TextKpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="card">
+      <div className="text-xs text-neutral-500">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-neutral-900 headline-tight line-clamp-2 leading-snug">
         {value}
       </div>
-      {hint && <div className="text-xs text-neutral-400 mt-0.5">{hint}</div>}
+      {hint && <div className="text-xs text-neutral-400 mt-1">{hint}</div>}
     </div>
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  caption,
+  children,
+}: {
+  title: string;
+  caption?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="bg-white rounded-xl border border-black/[0.06] px-6 py-5">
-      <div className="text-xs font-semibold text-neutral-700 mb-3">{title}</div>
+    <section>
+      <div className="section-rule flex items-baseline gap-4 pb-3 mb-5 flex-wrap">
+        <h2 className="text-xl font-bold text-neutral-900 headline-tight">
+          {title}
+        </h2>
+        {caption && (
+          <span className="text-xs text-neutral-500 ml-auto">{caption}</span>
+        )}
+      </div>
       {children}
+    </section>
+  );
+}
+
+const THEME_PALETTE = [
+  "#059669",
+  "#0891b2",
+  "#7c3aed",
+  "#db2777",
+  "#ea580c",
+  "#0284c7",
+  "#65a30d",
+  "#a16207",
+  "#4f46e5",
+  "#be123c",
+];
+
+function ChipCloud({ data }: { data: Array<{ label: string; count: number }> }) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {data.map((d) => {
+        const weight = d.count / max;
+        const fontSize = 14 + weight * 6;
+        const alpha = 0.08 + weight * 0.14;
+        return (
+          <span
+            key={d.label}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{
+              fontSize: `${fontSize}px`,
+              lineHeight: 1.2,
+              background: `rgba(5, 150, 105, ${alpha})`,
+              color: weight > 0.6 ? "#065f46" : "#0f0f0f",
+              fontWeight: weight > 0.6 ? 600 : 500,
+            }}
+          >
+            {d.label}
+            <span
+              className="tabular-nums"
+              style={{ color: "rgba(0,0,0,0.4)", fontSize: "12px" }}
+            >
+              {d.count}
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }
 
-function EmptyChart({ hint }: { hint: string }) {
+function ThemeDistributionChart({
+  data,
+}: {
+  data: Array<{ name: string; count: number }>;
+}) {
+  const total = data.reduce((sum, d) => sum + d.count, 0) || 1;
+  const withColors = data.map((d, i) => ({
+    ...d,
+    color: THEME_PALETTE[i % THEME_PALETTE.length],
+    pct: (d.count / total) * 100,
+  }));
   return (
-    <div className="h-[220px] grid place-items-center text-xs text-neutral-400">{hint}</div>
+    <div className="space-y-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-neutral-500">누적 {total}회 언급</span>
+        <span className="text-xs text-neutral-500 tabular-nums">
+          {data.length}개 세그먼트
+        </span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-black/[0.04]">
+        {withColors.map((d) => (
+          <div
+            key={d.name}
+            title={`${d.name}: ${d.count} (${d.pct.toFixed(1)}%)`}
+            style={{ width: `${d.pct}%`, background: d.color }}
+            className="transition-opacity hover:opacity-80"
+          />
+        ))}
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        {withColors.map((d) => (
+          <li key={d.name} className="flex items-center gap-3">
+            <span
+              className="w-2.5 h-2.5 rounded-sm shrink-0"
+              style={{ background: d.color }}
+            />
+            <span className="text-sm text-neutral-800 leading-snug flex-1 min-w-0">
+              {d.name}
+            </span>
+            <span className="text-xs text-neutral-500 tabular-nums shrink-0">
+              {d.count}
+              <span className="text-neutral-400 ml-1.5">
+                {d.pct.toFixed(0)}%
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function HorizontalBar({ data }: { data: Array<{ label: string; count: number }> }) {
+function RankedList({ data }: { data: Array<{ label: string; count: number }> }) {
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ top: 4, right: 12, left: 8, bottom: 0 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-        <YAxis
-          type="category"
-          dataKey="label"
-          tick={{ fontSize: 12 }}
-          width={140}
-          interval={0}
-        />
-        <Tooltip contentStyle={{ fontSize: 12 }} />
-        <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-          {data.map((_, i) => (
-            <Cell key={i} fill={BAR_PALETTE[i % BAR_PALETTE.length]} />
+    <ol className="space-y-3">
+      {data.map((d, i) => (
+        <li key={d.label} className="flex gap-3">
+          <span
+            className="shrink-0 text-xs font-semibold text-neutral-400 tabular-nums mt-0.5"
+            style={{ width: "1.5rem" }}
+          >
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+            <span className="text-sm text-neutral-800 leading-relaxed">{d.label}</span>
+            <span className="text-xs font-semibold text-neutral-500 tabular-nums shrink-0 mt-0.5">
+              ×{d.count}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ReportCardLink({ r }: { r: WeeklyReportSummary }) {
+  return (
+    <Link href={`/report/${r.id}`} className="card card-hover block group">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold tabular-nums" style={{ color: ACCENT }}>
+          {r.report_date}
+        </div>
+        <div className="text-xs text-neutral-400">{daysAgo(r.created_at)}</div>
+      </div>
+      <p className="text-sm text-neutral-800 mt-3 leading-relaxed line-clamp-3 min-h-[3.75rem]">
+        {r.collectionSummary || "요약 없음"}
+      </p>
+      {r.topOpportunityTitle && (
+        <div className="mt-4 pt-4 border-t border-black/[0.06]">
+          <div className="text-xs text-neutral-500">Top Pick</div>
+          <div className="text-sm font-semibold text-neutral-900 mt-1 leading-snug">
+            {r.topOpportunityTitle}
+          </div>
+        </div>
+      )}
+      <div className="mt-4 flex items-center justify-between text-xs text-neutral-500">
+        <span className="tabular-nums">
+          테마 {r.themeCount} · 서비스 {r.serviceCount}
+        </span>
+        <span className="text-neutral-400">{formatDateLong(r.created_at)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function Empty({ hint }: { hint: string }) {
+  return (
+    <div className="h-[180px] grid place-items-center text-xs text-neutral-400">{hint}</div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <main className="min-h-[100dvh]">
+      <header className="border-b border-black/[0.06] bg-white sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-8 py-5">
+          <div className="h-3 w-32 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-6 w-56 bg-black/[0.06] rounded animate-pulse mt-3" />
+        </div>
+      </header>
+      <div className="max-w-6xl mx-auto px-8 py-10 section-stack">
+        <div className="card" style={{ padding: "32px" }}>
+          <div className="h-5 w-24 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-8 w-96 max-w-full bg-black/[0.08] rounded animate-pulse mt-4" />
+          <div className="space-y-2 mt-6">
+            <div className="h-3 w-full bg-black/[0.05] rounded animate-pulse" />
+            <div className="h-3 w-3/4 bg-black/[0.05] rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card">
+              <div className="h-3 w-20 bg-black/[0.06] rounded animate-pulse" />
+              <div className="h-8 w-16 bg-black/[0.08] rounded animate-pulse mt-3" />
+            </div>
           ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+        </div>
+        <div className="card">
+          <div className="h-[240px] bg-black/[0.04] rounded animate-pulse" />
+        </div>
+      </div>
+    </main>
   );
 }

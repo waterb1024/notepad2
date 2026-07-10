@@ -1,16 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
-  Legend,
-  Pie,
-  PieChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -27,16 +24,13 @@ type Props = { id: number };
 
 type ServiceRow = ThemeService & { themeName: string };
 
-const THEME_PALETTE = [
-  "#059669",
-  "#0891b2",
-  "#7c3aed",
-  "#db2777",
-  "#ea580c",
-  "#65a30d",
-  "#0284c7",
-  "#a16207",
-];
+const ACCENT = "#059669";
+const ACCENT_SOFT = "#f0fdf4";
+const ACCENT_BORDER = "#a7f3d0";
+const INK = "#0f0f0f";
+const MUTED = "#525252";
+const FAINT = "#a3a3a3";
+const LINE = "#e5e5e5";
 
 function parseMarketNumber(v: string): number | null {
   if (!v) return null;
@@ -68,29 +62,30 @@ function biggestMarketLabel(segs: MarketSegment[]): { name: string; value: strin
   return best;
 }
 
-function Stars({ count, max = 5 }: { count: number; max?: number }) {
+function ScoreDots({ value, max = 5, tone = "accent" }: { value: number; max?: number; tone?: "accent" | "ink" }) {
+  const color = tone === "accent" ? ACCENT : INK;
   return (
-    <span className="text-amber-500 tracking-tight">
-      {"★".repeat(count)}
-      <span className="text-neutral-300">{"★".repeat(Math.max(0, max - count))}</span>
+    <span className="inline-flex items-center gap-0.5" aria-label={`${value}/${max}`}>
+      {Array.from({ length: max }).map((_, i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full"
+          style={{ background: i < value ? color : LINE }}
+        />
+      ))}
     </span>
   );
 }
-
-const RANK_BADGE: Record<number, { emoji: string; bg: string }> = {
-  1: { emoji: "🥇", bg: "bg-amber-500" },
-  2: { emoji: "🥈", bg: "bg-slate-500" },
-  3: { emoji: "🥉", bg: "bg-orange-500" },
-  4: { emoji: "🎯", bg: "bg-neutral-500" },
-  5: { emoji: "🎯", bg: "bg-neutral-500" },
-};
 
 export default function ReportDetail({ id }: Props) {
   const router = useRouter();
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const [themeFilter, setThemeFilter] = useState<string>("all");
+  const [themeFilter, setThemeFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"upvotes" | "name" | "theme">("upvotes");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -101,12 +96,24 @@ export default function ReportDetail({ id }: Props) {
         setError(res.status === 404 ? "리포트를 찾을 수 없습니다." : `오류 (${res.status})`);
         return;
       }
-      setReport((await res.json()) as WeeklyReport);
+      const parsed = (await res.json()) as WeeklyReport;
+      setReport(parsed);
+      const firstTheme = parsed.data.themes[0]?.name ?? null;
+      setThemeFilter(firstTheme);
     })();
   }, [id]);
 
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(e.target as Node)) return;
+      setMenuOpen(false);
+    }
+    if (menuOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [menuOpen]);
+
   const handleDelete = useCallback(async () => {
-    if (!confirm("이 리포트를 삭제할까요?")) return;
     await fetch(`/api/reports/${id}`, { method: "DELETE" });
     router.push("/");
   }, [id, router]);
@@ -120,9 +127,7 @@ export default function ReportDetail({ id }: Props) {
 
   const filteredServices = useMemo(() => {
     let list = allServices;
-    if (themeFilter !== "all") {
-      list = list.filter((s) => s.themeName === themeFilter);
-    }
+    if (themeFilter) list = list.filter((s) => s.themeName === themeFilter);
     return [...list].sort((a, b) => {
       let cmp = 0;
       if (sortBy === "upvotes") cmp = (b.upvotes ?? -1) - (a.upvotes ?? -1);
@@ -134,10 +139,9 @@ export default function ReportDetail({ id }: Props) {
 
   const themeDistribution = useMemo(() => {
     if (!report) return [];
-    return report.data.themes.map((t) => ({
-      name: t.name,
-      count: t.services.length,
-    }));
+    return report.data.themes
+      .map((t) => ({ name: t.name, count: t.services.length }))
+      .sort((a, b) => b.count - a.count);
   }, [report]);
 
   const marketChartData = useMemo(() => {
@@ -168,18 +172,17 @@ export default function ReportDetail({ id }: Props) {
     return (
       <main className="min-h-[100dvh] grid place-items-center">
         <div className="text-sm text-neutral-500">
-          {error} <Link href="/" className="text-emerald-700 underline ml-2">돌아가기</Link>
+          {error}{" "}
+          <Link href="/" className="ml-2 underline" style={{ color: ACCENT }}>
+            돌아가기
+          </Link>
         </div>
       </main>
     );
   }
 
   if (!report) {
-    return (
-      <main className="min-h-[100dvh] grid place-items-center text-neutral-400 text-sm">
-        불러오는 중...
-      </main>
-    );
+    return <ReportDetailSkeleton />;
   }
 
   const { data } = report;
@@ -190,339 +193,368 @@ export default function ReportDetail({ id }: Props) {
 
   return (
     <main className="min-h-[100dvh]">
-      <header className="border-b border-black/[0.06] bg-white sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
+      <header className="border-b border-black/[0.06] bg-[color:var(--bg)]/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+          >
             ← 대시보드
           </Link>
-          <div className="text-xs text-neutral-500">{report.report_date}</div>
-          <button
-            onClick={handleDelete}
-            className="text-xs text-neutral-400 hover:text-red-500 transition"
-          >
-            삭제
-          </button>
+          <div className="text-xs text-neutral-500 tabular-nums">{report.report_date}</div>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="더보기"
+              className="w-7 h-7 grid place-items-center rounded-lg text-neutral-500 hover:bg-black/[0.05] hover:text-neutral-900 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-40 rounded-lg border border-black/[0.08] bg-white shadow-lg overflow-hidden z-20">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setConfirming(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  리포트 삭제
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      <article className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+      {confirming && (
+        <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl mx-4">
+            <div className="text-lg font-semibold text-neutral-900 headline-tight">
+              이 리포트를 삭제할까요?
+            </div>
+            <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+              {report.report_date} 리포트가 영구적으로 사라집니다.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-neutral-700 hover:bg-black/[0.04] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <article className="max-w-6xl mx-auto px-8 py-10 section-stack">
         <div>
-          <div className="text-xs font-medium text-emerald-700">{report.report_date}</div>
-          <h1 className="text-2xl font-bold text-neutral-900 mt-1">주간 Product Hunt 리서치</h1>
+          <div className="eyebrow tabular-nums" style={{ color: ACCENT }}>
+            주간 리포트 · {report.report_date}
+          </div>
+          <h1 className="display text-3xl md:text-4xl text-neutral-900 mt-3">
+            주간 Product Hunt 리서치
+          </h1>
           {data.collectionSummary && (
-            <p className="text-sm text-neutral-600 mt-2 leading-relaxed">
+            <p className="text-base text-neutral-700 mt-5 leading-relaxed max-w-3xl">
               {data.collectionSummary}
             </p>
           )}
         </div>
 
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="표본 수 (서비스)" value={allServices.length} />
-          <Kpi label="지배적 테마" value={data.themes.length} />
-          <Kpi label="Top 아이템" value={data.top5Opportunities.length} />
-          <Kpi
-            label="가장 큰 시장 (2030)"
-            value={biggestMarket?.value ?? "—"}
-            hint={biggestMarket?.name}
-            valueClassName="text-xl"
-          />
-        </section>
-
         {fastest && data.fastestValidation && (
-          <section className="bg-emerald-50/60 border border-emerald-200 rounded-xl px-6 py-5">
-            <div className="eyebrow text-emerald-700">🚀 가장 빠른 검증 경로</div>
-            <div className="mt-2">
-              <span className="text-lg font-semibold text-neutral-900">
-                {fastest.rank}위 — {fastest.title}
-              </span>
-              <p className="text-sm text-neutral-700 mt-2 leading-relaxed">
-                {data.fastestValidation.rationale}
-              </p>
+          <section
+            className="card relative overflow-hidden"
+            style={{
+              background: ACCENT_SOFT,
+              borderColor: ACCENT_BORDER,
+              padding: "36px",
+            }}
+          >
+            <div className="eyebrow" style={{ color: ACCENT }}>
+              가장 빠른 검증 경로
+            </div>
+            <h2 className="display text-2xl md:text-3xl text-neutral-900 mt-3">
+              {fastest.rank}위 · {fastest.title}
+            </h2>
+            <p className="mt-3 text-base text-neutral-800 leading-relaxed max-w-3xl">
+              {data.fastestValidation.rationale}
+            </p>
+            <div className="mt-5 flex items-center gap-6 flex-wrap text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-neutral-600">난이도</span>
+                <ScoreDots value={fastest.difficultyStars} max={5} />
+                <span className="text-xs font-semibold text-neutral-800 tabular-nums">
+                  {fastest.difficultyStars}/5
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-neutral-600">기회</span>
+                <ScoreDots value={Math.round(fastest.opportunityScore / 2)} max={5} tone="accent" />
+                <span
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color: ACCENT }}
+                >
+                  {fastest.opportunityScore}/10
+                </span>
+              </div>
             </div>
           </section>
         )}
 
-        <section>
-          <SectionTitle title="1. 테마 분포" caption="어디에 런칭이 몰리는지 — 경쟁 밀집도" />
-          {themeDistribution.length === 0 ? (
-            <EmptyMsg />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard>
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={themeDistribution}
-                      dataKey="count"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={100}
-                      paddingAngle={2}
-                    >
-                      {themeDistribution.map((_, i) => (
-                        <Cell key={i} fill={THEME_PALETTE[i % THEME_PALETTE.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartCard>
-              <ChartCard>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart
-                    data={themeDistribution}
-                    layout="vertical"
-                    margin={{ top: 4, right: 30, left: 8, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                    <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tick={{ fontSize: 12 }}
-                      width={140}
-                      interval={0}
-                    />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                      {themeDistribution.map((_, i) => (
-                        <Cell key={i} fill={THEME_PALETTE[i % THEME_PALETTE.length]} />
-                      ))}
-                      <LabelList dataKey="count" position="right" style={{ fontSize: 12 }} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            </div>
-          )}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Kpi label="표본 서비스" value={allServices.length} />
+          <Kpi label="테마" value={data.themes.length} />
+          <Kpi label="Top 아이디어" value={data.top5Opportunities.length} />
+          <Kpi
+            label="최대 시장 (2030)"
+            value={biggestMarket?.value ?? "—"}
+            hint={biggestMarket?.name}
+            isText
+          />
         </section>
 
-        <section>
-          <SectionTitle
-            title={`2. 서비스 테이블 (${filteredServices.length}/${allServices.length})`}
-            caption="테마별 필터 · 컬럼 클릭으로 정렬"
-          />
-          <div className="bg-white border border-black/[0.06] rounded-xl overflow-hidden">
-            <div className="border-b border-black/[0.06] px-4 py-3 bg-black/[0.02] flex items-center gap-3 flex-wrap">
-              <div className="text-xs text-neutral-500">테마 필터:</div>
-              <select
-                value={themeFilter}
-                onChange={(e) => setThemeFilter(e.target.value)}
-                className="text-xs border border-neutral-300 rounded px-2 py-1 bg-white"
-              >
-                <option value="all">전체 ({allServices.length})</option>
-                {data.themes.map((t) => (
-                  <option key={t.name} value={t.name}>
-                    {t.name} ({t.services.length})
-                  </option>
-                ))}
-              </select>
+        <Section number="01" title="테마 분포" caption="런칭이 어디에 몰렸는가">
+          <div className="card">
+            {themeDistribution.length === 0 ? (
+              <Empty hint="테마 없음" />
+            ) : (
+              <ThemeDistributionChart data={themeDistribution} />
+            )}
+          </div>
+        </Section>
+
+        <Section
+          number="02"
+          title="서비스"
+          caption={`${filteredServices.length} / ${allServices.length}개`}
+        >
+          <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex flex-wrap gap-1.5">
+              {data.themes.map((t) => {
+                const active = themeFilter === t.name;
+                return (
+                  <button
+                    key={t.name}
+                    onClick={() => setThemeFilter(t.name)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                      active
+                        ? "bg-neutral-900 text-white border-neutral-900 shadow-sm"
+                        : "bg-white text-neutral-700 border-black/[0.12] hover:border-neutral-900 hover:text-neutral-900"
+                    }`}
+                  >
+                    {t.name}
+                    <span
+                      className={`tabular-nums ${
+                        active ? "text-white/60" : "text-neutral-400"
+                      }`}
+                      style={{ fontSize: "12px" }}
+                    >
+                      {t.services.length}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-black/[0.02] text-neutral-500 text-xs">
-                  <tr>
-                    <Th
-                      label="이름"
-                      active={sortBy === "name"}
-                      dir={sortDir}
-                      onClick={() => toggleSort("name", sortBy, sortDir, setSortBy, setSortDir)}
-                    />
-                    <th className="text-left px-4 py-2 font-medium">한 줄 설명</th>
-                    <Th
-                      label="테마"
-                      active={sortBy === "theme"}
-                      dir={sortDir}
-                      onClick={() => toggleSort("theme", sortBy, sortDir, setSortBy, setSortDir)}
-                    />
-                    <Th
-                      label="Upvotes"
-                      active={sortBy === "upvotes"}
-                      dir={sortDir}
-                      onClick={() =>
-                        toggleSort("upvotes", sortBy, sortDir, setSortBy, setSortDir)
-                      }
-                      align="right"
-                    />
-                    <th className="text-left px-4 py-2 font-medium">링크</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {filteredServices.map((s, i) => (
-                    <tr key={`${s.name}-${i}`} className="hover:bg-black/[0.02]">
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <ServiceIcon service={s} size={20} />
-                          <span className="font-medium text-neutral-900">{s.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-neutral-600 text-xs">{s.tag || "—"}</td>
-                      <td className="px-4 py-2 text-xs">
-                        <span className="inline-block bg-neutral-100 text-neutral-700 rounded px-1.5 py-0.5">
-                          {s.themeName}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-neutral-700">
-                        {s.upvotes != null ? s.upvotes.toLocaleString() : "—"}
-                      </td>
-                      <td className="px-4 py-2 text-xs">
-                        {s.productHuntUrl ? (
-                          <a
-                            href={s.productHuntUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-orange-600 hover:text-orange-700 hover:underline"
-                          >
-                            PH ↗
-                          </a>
-                        ) : s.websiteUrl ? (
-                          <a
-                            href={s.websiteUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-neutral-500 hover:text-neutral-800 hover:underline"
-                          >
-                            Web ↗
-                          </a>
-                        ) : (
-                          <span className="text-neutral-300">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredServices.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-xs text-neutral-400">
-                        해당 테마에 서비스가 없어요.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="ml-auto flex items-center gap-3 text-xs text-neutral-400 shrink-0">
+              <span>정렬</span>
+              {(
+                [
+                  { k: "upvotes", label: "Upvotes" },
+                  { k: "name", label: "이름" },
+                  { k: "theme", label: "테마" },
+                ] as const
+              ).map(({ k, label }) => {
+                const active = sortBy === k;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => cycleSort(k, sortBy, sortDir, setSortBy, setSortDir)}
+                    className={`transition-colors ${
+                      active
+                        ? "text-neutral-900 font-medium"
+                        : "text-neutral-400 hover:text-neutral-700"
+                    }`}
+                  >
+                    {label}
+                    {active && (
+                      <span className="ml-0.5 text-neutral-400">
+                        {sortDir === "desc" ? "↓" : "↑"}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </section>
 
-        <section>
-          <SectionTitle title="3. 문제의 공통점" />
-          {data.commonalities.length === 0 ? (
-            <EmptyMsg />
+          {filteredServices.length === 0 ? (
+            <div className="card">
+              <Empty hint="해당 테마에 서비스가 없어요." />
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {filteredServices.map((s, i) => (
+                <li key={`${s.name}-${i}`} className="card card-hover flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <ServiceIcon service={s} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                        <span className="text-base font-semibold text-neutral-900 headline-tight">
+                          {s.name}
+                        </span>
+                        {s.upvotes != null && (
+                          <span
+                            className="text-xs font-semibold tabular-nums"
+                            style={{ color: ACCENT }}
+                          >
+                            ▲ {s.upvotes.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-neutral-500 mt-0.5">{s.themeName}</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-neutral-700 leading-relaxed flex-1">
+                    {s.tag || "—"}
+                  </p>
+                  {(s.productHuntUrl || s.websiteUrl) && (
+                    <div className="flex items-center gap-4 text-xs pt-1 border-t border-black/[0.06]">
+                      {s.productHuntUrl && (
+                        <a
+                          href={s.productHuntUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium hover:underline"
+                          style={{ color: ACCENT }}
+                        >
+                          Product Hunt ↗
+                        </a>
+                      )}
+                      {s.websiteUrl && (
+                        <a
+                          href={s.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-neutral-500 hover:text-neutral-900 hover:underline"
+                        >
+                          Website ↗
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        <Section number="03" title="공통 문제" caption="문제들의 공통 패턴">
+          {data.commonalities.length === 0 ? (
+            <div className="card">
+              <Empty hint="아직 없음" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {data.commonalities.map((c) => (
-                <div
-                  key={c.order}
-                  className="bg-white border border-black/[0.06] rounded-xl px-6 py-5"
-                >
-                  <div className="w-8 h-8 grid place-items-center bg-emerald-600 text-white text-sm font-bold rounded-full">
+                <div key={c.order} className="card flex gap-5">
+                  <div
+                    className="shrink-0 w-9 h-9 grid place-items-center text-white text-sm font-bold rounded-full tabular-nums"
+                    style={{ background: INK }}
+                  >
                     {c.order}
                   </div>
-                  <div className="text-sm font-semibold text-neutral-900 mt-3">
-                    {c.headline}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-semibold text-neutral-900 leading-snug headline-tight">
+                      {c.headline}
+                    </h3>
+                    <p className="text-base text-neutral-700 mt-2 leading-relaxed">
+                      {c.elaboration}
+                    </p>
                   </div>
-                  <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
-                    {c.elaboration}
-                  </p>
                 </div>
               ))}
             </div>
           )}
-        </section>
+        </Section>
 
-        <section>
-          <SectionTitle
-            title="4. 시장 규모 비교"
-            caption="2024 → 2030 규모, 방향성 참고용 (업계 리포트 기반)"
-          />
-          {marketChartData.length > 0 ? (
-            <ChartCard>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart
-                  data={marketChartData}
-                  layout="vertical"
-                  margin={{ top: 4, right: 30, left: 100, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 12 }}
-                    label={{
-                      value: "$B",
-                      position: "insideBottomRight",
-                      offset: -4,
-                      fontSize: 12,
-                    }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={{ fontSize: 12 }}
-                    width={140}
-                    interval={0}
-                  />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12 }}
-                    formatter={(_, __, item) => {
-                      const p = item.payload as {
-                        raw2024: string;
-                        raw2030: string;
-                        cagr?: string;
-                      };
-                      return [
-                        `${p.raw2024} → ${p.raw2030}${p.cagr ? ` (CAGR ${p.cagr})` : ""}`,
-                        "규모",
-                      ];
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="2024" fill="#94a3b8" radius={[0, 3, 3, 0]} />
-                  <Bar dataKey="2030" fill="#059669" radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          ) : (
-            <div className="bg-white border border-black/[0.06] rounded-xl px-6 py-5 text-sm text-neutral-500">
-              시장 규모 세그먼트 데이터 없음
-            </div>
-          )}
+        <Section
+          number="04"
+          title="시장 규모"
+          caption="2024 → 2030 · 업계 리포트 방향성 참고"
+        >
           {data.marketSize.koreaContext && (
-            <div className="mt-4 bg-amber-50/60 border border-amber-200 rounded-xl px-6 py-5">
-              <div className="eyebrow text-amber-800">🇰🇷 한국 맥락</div>
-              <p className="text-sm text-neutral-800 mt-2 leading-relaxed">
+            <div
+              className="card mb-4"
+              style={{ background: ACCENT_SOFT, borderColor: ACCENT_BORDER }}
+            >
+              <div className="text-xs font-semibold tracking-wide" style={{ color: ACCENT }}>
+                한국 시장 맥락
+              </div>
+              <p className="text-lg text-neutral-800 mt-3 leading-relaxed headline-tight">
                 {data.marketSize.koreaContext}
               </p>
             </div>
           )}
-        </section>
+          {marketChartData.length > 0 ? (
+            <MarketSegmentsList data={marketChartData} />
+          ) : (
+            <div className="card">
+              <Empty hint="시장 규모 데이터 없음" />
+            </div>
+          )}
+        </Section>
 
-        <section>
-          <SectionTitle
-            title="5. 1인 개발자용 미개척 Top 5"
-            caption="난이도 × 기회 산점도로 상대 위치를 시각화 — 좌상단이 스위트 스팟"
-          />
+        <Section
+          number="05"
+          title="Top 5 아이디어"
+          caption="난이도 × 기회 매트릭스 · 좌상단이 스위트 스팟"
+        >
           {data.top5Opportunities.length === 0 ? (
-            <EmptyMsg />
+            <div className="card">
+              <Empty hint="아직 없음" />
+            </div>
           ) : (
             <div className="space-y-4">
-              <ChartCard>
+              <div className="card">
                 <ResponsiveContainer width="100%" height={280}>
-                  <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <ScatterChart margin={{ top: 24, right: 60, left: 60, bottom: 40 }}>
+                    <ReferenceArea
+                      x1={0.5}
+                      x2={3}
+                      y1={5}
+                      y2={10}
+                      fill={ACCENT}
+                      fillOpacity={0.06}
+                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={LINE} />
+                    <ReferenceLine x={3} stroke={LINE} strokeDasharray="4 4" />
+                    <ReferenceLine y={5} stroke={LINE} strokeDasharray="4 4" />
                     <XAxis
                       type="number"
                       dataKey="difficulty"
                       name="난이도"
                       domain={[0.5, 5.5]}
                       ticks={[1, 2, 3, 4, 5]}
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 13, fill: INK }}
+                      stroke={LINE}
                       label={{
-                        value: "난이도 (별점) →",
+                        value: "쉬움 ← 난이도 → 어려움",
                         position: "insideBottom",
-                        offset: -18,
+                        offset: -20,
                         fontSize: 12,
+                        fill: MUTED,
                       }}
                     />
                     <YAxis
@@ -531,106 +563,147 @@ export default function ReportDetail({ id }: Props) {
                       name="기회"
                       domain={[0, 10]}
                       ticks={[0, 2, 4, 6, 8, 10]}
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 13, fill: INK }}
+                      stroke={LINE}
                       label={{
-                        value: "↑ 기회 점수",
+                        value: "낮음 ← 기회 → 높음",
                         angle: -90,
                         position: "insideLeft",
+                        offset: 10,
                         fontSize: 12,
+                        fill: MUTED,
                       }}
                     />
-                    <ZAxis range={[220, 220]} />
+                    <ZAxis range={[260, 260]} />
                     <Tooltip
                       cursor={{ strokeDasharray: "3 3" }}
-                      contentStyle={{ fontSize: 12 }}
-                      formatter={(v, name) => [String(v), name === "difficulty" ? "난이도" : "기회"]}
-                      labelFormatter={() => ""}
+                      contentStyle={{
+                        fontSize: 13,
+                        borderRadius: 8,
+                        border: "1px solid rgba(0,0,0,0.08)",
+                      }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const p = payload[0].payload as {
+                          rank: number;
+                          title: string;
+                          difficulty: number;
+                          opportunity: number;
+                        };
+                        return (
+                          <div className="bg-white rounded-lg border border-black/[0.08] px-3 py-2 shadow-lg">
+                            <div className="text-xs font-semibold text-neutral-900">
+                              {p.rank}위 · {p.title}
+                            </div>
+                            <div className="text-xs text-neutral-500 mt-1 tabular-nums">
+                              난이도 {p.difficulty}/5 · 기회 {p.opportunity}/10
+                            </div>
+                          </div>
+                        );
+                      }}
                     />
                     <Scatter data={scatterData}>
                       {scatterData.map((d) => (
-                        <Cell
-                          key={d.rank}
-                          fill={
-                            d.rank === 1
-                              ? "#f59e0b"
-                              : d.rank === 2
-                                ? "#64748b"
-                                : d.rank === 3
-                                  ? "#f97316"
-                                  : "#a3a3a3"
-                          }
-                        />
+                        <Cell key={d.rank} fill={d.rank === 1 ? ACCENT : INK} />
                       ))}
                       <LabelList
                         dataKey="rank"
                         position="top"
-                        style={{ fontSize: 12, fontWeight: "bold" }}
+                        style={{ fontSize: 13, fontWeight: 600, fill: INK }}
                       />
                     </Scatter>
                   </ScatterChart>
                 </ResponsiveContainer>
-              </ChartCard>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-neutral-500">
+                  <div>◀ 좌상단: 스위트 스팟 (쉽고 기회 큼)</div>
+                  <div className="text-right">우상단: 도전 (어렵고 기회 큼) ▶</div>
+                  <div>◀ 좌하단: 안전 (쉽고 기회 작음)</div>
+                  <div className="text-right">우하단: 피할 것 (어렵고 기회 작음) ▶</div>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {data.top5Opportunities
                   .slice()
                   .sort((a, b) => a.rank - b.rank)
                   .map((o) => {
-                    const badge = RANK_BADGE[o.rank] ?? RANK_BADGE[5];
+                    const isTop = o.rank === 1;
                     return (
                       <div
                         key={o.rank}
-                        className="bg-white border border-black/[0.06] rounded-xl px-6 py-5 hover:border-black/[0.14] hover:shadow-[0_2px_12px_rgba(23,23,23,0.05)] transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                        className="card card-hover"
+                        style={
+                          isTop
+                            ? { background: ACCENT_SOFT, borderColor: ACCENT_BORDER }
+                            : undefined
+                        }
                       >
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <div className="flex items-center gap-3">
                             <span
-                              className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-white text-sm font-bold ${badge.bg}`}
+                              className="inline-flex items-center justify-center w-9 h-9 rounded-full text-white text-sm font-bold tabular-nums"
+                              style={{ background: isTop ? ACCENT : INK }}
                             >
                               {o.rank}
                             </span>
-                            <span className="text-lg">{badge.emoji}</span>
-                            <span className="text-lg font-bold text-neutral-900">{o.title}</span>
+                            <span className="text-lg font-bold text-neutral-900 headline-tight">
+                              {o.title}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-5 text-xs">
+                            <div className="flex items-center gap-2">
                               <span className="text-neutral-500">난이도</span>
-                              <Stars count={o.difficultyStars} />
+                              <ScoreDots value={o.difficultyStars} max={5} tone="ink" />
+                              <span className="font-semibold text-neutral-800 tabular-nums">
+                                {o.difficultyStars}/5
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
                               <span className="text-neutral-500">기회</span>
-                              <span className="font-semibold text-emerald-700">
+                              <ScoreDots
+                                value={Math.round(o.opportunityScore / 2)}
+                                max={5}
+                                tone="accent"
+                              />
+                              <span
+                                className="font-semibold tabular-nums"
+                                style={{ color: ACCENT }}
+                              >
                                 {o.opportunityScore}/10
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                          <div className="bg-black/[0.02] border border-black/[0.06] rounded-lg px-3.5 py-3">
-                            <div className="eyebrow text-sky-700">📈 올라탄 트렌드</div>
-                            <p className="text-sm text-neutral-800 mt-1.5 leading-relaxed">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                          <div>
+                            <div className="text-xs font-semibold text-neutral-500">
+                              올라탄 트렌드
+                            </div>
+                            <p className="text-sm text-neutral-800 mt-2 leading-relaxed">
                               {o.ridingTrend || "—"}
                             </p>
                           </div>
-                          <div className="bg-black/[0.02] border border-black/[0.06] rounded-lg px-3.5 py-3">
-                            <div className="eyebrow text-red-700">🇰🇷 한국 공백 포인트</div>
-                            <p className="text-sm text-neutral-800 mt-1.5 leading-relaxed">
+                          <div>
+                            <div className="text-xs font-semibold text-neutral-500">
+                              한국 시장 공백
+                            </div>
+                            <p className="text-sm text-neutral-800 mt-2 leading-relaxed">
                               {o.koreaGap || "—"}
                             </p>
                           </div>
                         </div>
                         {o.description && (
-                          <p className="text-xs text-neutral-600 mt-3 leading-relaxed">
+                          <p className="text-sm text-neutral-600 mt-4 leading-relaxed border-t border-black/[0.06] pt-4">
                             {o.description}
                           </p>
                         )}
                         {o.relatedServices && o.relatedServices.length > 0 && (
-                          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs text-neutral-500">관련:</span>
+                          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs text-neutral-500 mr-1">관련</span>
                             {o.relatedServices.map((s) => (
                               <span
                                 key={s}
-                                className="text-xs bg-neutral-100 border border-black/[0.06] text-neutral-700 px-1.5 py-0.5 rounded"
+                                className="text-xs text-neutral-700 border border-black/[0.1] rounded-md px-2 py-0.5"
                               >
                                 {s}
                               </span>
@@ -643,12 +716,15 @@ export default function ReportDetail({ id }: Props) {
               </div>
             </div>
           )}
-        </section>
+        </Section>
 
         {data.notes && (
-          <section className="bg-neutral-100 border border-black/[0.06] rounded-xl px-6 py-5">
-            <div className="text-xs font-semibold text-neutral-700">📝 메모</div>
-            <p className="whitespace-pre-line text-xs text-neutral-600 mt-2 leading-relaxed">
+          <section
+            className="card"
+            style={{ background: "var(--muted)", borderColor: "transparent" }}
+          >
+            <div className="text-xs font-semibold text-neutral-600">에디터 메모</div>
+            <p className="whitespace-pre-line text-sm text-neutral-700 mt-3 leading-relaxed">
               {data.notes}
             </p>
           </section>
@@ -658,7 +734,275 @@ export default function ReportDetail({ id }: Props) {
   );
 }
 
-function toggleSort(
+/* ---- subcomponents ---- */
+
+function Kpi({
+  label,
+  value,
+  hint,
+  isText,
+}: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  isText?: boolean;
+}) {
+  return (
+    <div className="card">
+      <div className="text-xs text-neutral-500">{label}</div>
+      <div
+        className={`mt-2 font-bold text-neutral-900 headline-tight tabular-nums ${
+          isText ? "text-xl" : "text-3xl"
+        }`}
+      >
+        {value}
+      </div>
+      {hint && <div className="text-xs text-neutral-500 mt-1 truncate">{hint}</div>}
+    </div>
+  );
+}
+
+function Section({
+  number,
+  title,
+  caption,
+  children,
+}: {
+  number: string;
+  title: string;
+  caption?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="section-rule flex items-baseline gap-4 pb-3 mb-5 flex-wrap">
+        <span className="eyebrow tabular-nums">{number}</span>
+        <h2 className="text-xl font-bold text-neutral-900 headline-tight">
+          {title}
+        </h2>
+        {caption && (
+          <span className="text-xs text-neutral-500 ml-auto">{caption}</span>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const THEME_PALETTE = [
+  "#059669",
+  "#0891b2",
+  "#7c3aed",
+  "#db2777",
+  "#ea580c",
+  "#0284c7",
+  "#65a30d",
+  "#a16207",
+  "#4f46e5",
+  "#be123c",
+];
+
+function ThemeDistributionChart({
+  data,
+}: {
+  data: Array<{ name: string; count: number }>;
+}) {
+  const total = data.reduce((sum, d) => sum + d.count, 0) || 1;
+  const withColors = data.map((d, i) => ({
+    ...d,
+    color: THEME_PALETTE[i % THEME_PALETTE.length],
+    pct: (d.count / total) * 100,
+  }));
+  return (
+    <div className="space-y-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-neutral-500">전체 {total}개 서비스</span>
+        <span className="text-xs text-neutral-500 tabular-nums">
+          {data.length}개 테마
+        </span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-black/[0.04]">
+        {withColors.map((d) => (
+          <div
+            key={d.name}
+            title={`${d.name}: ${d.count} (${d.pct.toFixed(1)}%)`}
+            style={{ width: `${d.pct}%`, background: d.color }}
+            className="transition-opacity hover:opacity-80"
+          />
+        ))}
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        {withColors.map((d) => (
+          <li key={d.name} className="flex items-center gap-3">
+            <span
+              className="w-2.5 h-2.5 rounded-sm shrink-0"
+              style={{ background: d.color }}
+            />
+            <span className="text-sm text-neutral-800 leading-snug flex-1 min-w-0">
+              {d.name}
+            </span>
+            <span className="text-xs text-neutral-500 tabular-nums shrink-0">
+              {d.count}
+              <span className="text-neutral-400 ml-1.5">
+                {d.pct.toFixed(0)}%
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+type MarketRow = {
+  name: string;
+  "2024": number;
+  "2030": number;
+  cagr: string;
+  raw2024: string;
+  raw2030: string;
+};
+
+function MarketSegmentsList({ data }: { data: MarketRow[] }) {
+  const maxVal = Math.max(...data.map((d) => Math.max(d["2024"], d["2030"])), 1);
+  return (
+    <div className="card space-y-6">
+      <div className="flex items-center justify-between text-xs text-neutral-500">
+        <span>세그먼트별 규모 · $B</span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-sm"
+              style={{ background: "#0f0f0f", opacity: 0.28 }}
+            />
+            2024
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-sm"
+              style={{ background: "#0f0f0f" }}
+            />
+            2030
+          </span>
+        </div>
+      </div>
+      <ul className="space-y-5">
+        {data.map((d, i) => {
+          const color = THEME_PALETTE[i % THEME_PALETTE.length];
+          const pct2024 = (d["2024"] / maxVal) * 100;
+          const pct2030 = (d["2030"] / maxVal) * 100;
+          const growthMultiple = d["2024"] > 0 ? d["2030"] / d["2024"] : null;
+          return (
+            <li key={d.name}>
+              <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-sm shrink-0"
+                    style={{ background: color }}
+                  />
+                  <span className="text-sm font-semibold text-neutral-900 leading-snug">
+                    {d.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-neutral-500 tabular-nums">
+                  {d.cagr && <span>CAGR {d.cagr}</span>}
+                  {growthMultiple && growthMultiple > 1 && (
+                    <span style={{ color }}>×{growthMultiple.toFixed(1)}</span>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <BarRow
+                  label="2024"
+                  pct={pct2024}
+                  value={d.raw2024}
+                  color={color}
+                  muted
+                />
+                <BarRow
+                  label="2030"
+                  pct={pct2030}
+                  value={d.raw2030}
+                  color={color}
+                  emphasized
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function BarRow({
+  label,
+  pct,
+  value,
+  color,
+  emphasized,
+  muted,
+}: {
+  label: string;
+  pct: number;
+  value: string;
+  color: string;
+  emphasized?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-9 text-xs text-neutral-500 tabular-nums shrink-0">{label}</span>
+      <div className="flex-1 h-2.5 bg-black/[0.04] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${Math.max(pct, 1)}%`,
+            background: color,
+            opacity: muted ? 0.32 : 1,
+          }}
+        />
+      </div>
+      <span
+        className={`w-24 text-right text-xs tabular-nums shrink-0 ${
+          emphasized ? "font-semibold" : "text-neutral-600"
+        }`}
+        style={emphasized ? { color } : undefined}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function MonoBar({ data }: { data: Array<{ label: string; count: number }> }) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <ul className="space-y-4">
+      {data.map((d) => {
+        const pct = (d.count / max) * 100;
+        return (
+          <li key={d.label} className="space-y-1.5">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm text-neutral-800 leading-snug">{d.label}</span>
+              <span className="text-xs font-semibold text-neutral-900 tabular-nums shrink-0">
+                {d.count}
+              </span>
+            </div>
+            <div className="h-1.5 bg-black/[0.05] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${pct}%`, background: ACCENT }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function cycleSort(
   next: "upvotes" | "name" | "theme",
   current: "upvotes" | "name" | "theme",
   currentDir: "asc" | "desc",
@@ -673,69 +1017,44 @@ function toggleSort(
   }
 }
 
-function Th({
-  label,
-  active,
-  dir,
-  onClick,
-  align,
-}: {
-  label: string;
-  active: boolean;
-  dir: "asc" | "desc";
-  onClick: () => void;
-  align?: "right";
-}) {
+function Empty({ hint }: { hint: string }) {
   return (
-    <th
-      onClick={onClick}
-      className={`px-4 py-2 font-medium cursor-pointer select-none hover:text-neutral-800 ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-    >
-      {label}
-      {active && <span className="ml-1 text-neutral-400">{dir === "desc" ? "▼" : "▲"}</span>}
-    </th>
+    <div className="h-[160px] grid place-items-center text-xs text-neutral-400">{hint}</div>
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-  valueClassName,
-}: {
-  label: string;
-  value: number | string;
-  hint?: string;
-  valueClassName?: string;
-}) {
+function ReportDetailSkeleton() {
   return (
-    <div className="bg-white border border-black/[0.06] rounded-xl px-4 py-3">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`font-bold text-neutral-900 mt-0.5 ${valueClassName ?? "text-2xl"}`}>
-        {value}
+    <main className="min-h-[100dvh]">
+      <header className="border-b border-black/[0.06] bg-white sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
+          <div className="h-3 w-16 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-3 w-24 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-3 w-8 bg-black/[0.06] rounded animate-pulse" />
+        </div>
+      </header>
+      <div className="max-w-6xl mx-auto px-8 py-10 section-stack">
+        <div>
+          <div className="h-3 w-40 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-8 w-96 max-w-full bg-black/[0.08] rounded animate-pulse mt-3" />
+          <div className="h-3 w-full bg-black/[0.05] rounded animate-pulse mt-4" />
+          <div className="h-3 w-3/4 bg-black/[0.05] rounded animate-pulse mt-2" />
+        </div>
+        <div className="card" style={{ padding: "32px" }}>
+          <div className="h-3 w-32 bg-black/[0.08] rounded animate-pulse" />
+          <div className="h-6 w-64 bg-black/[0.1] rounded animate-pulse mt-3" />
+          <div className="h-3 w-full bg-black/[0.05] rounded animate-pulse mt-4" />
+          <div className="h-3 w-4/5 bg-black/[0.05] rounded animate-pulse mt-2" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card">
+              <div className="h-3 w-20 bg-black/[0.06] rounded animate-pulse" />
+              <div className="h-7 w-14 bg-black/[0.08] rounded animate-pulse mt-3" />
+            </div>
+          ))}
+        </div>
       </div>
-      {hint && <div className="text-xs text-neutral-400 mt-0.5 truncate">{hint}</div>}
-    </div>
+    </main>
   );
-}
-
-function SectionTitle({ title, caption }: { title: string; caption?: string }) {
-  return (
-    <div className="mb-3">
-      <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
-      {caption && <p className="text-xs text-neutral-500 mt-0.5">{caption}</p>}
-    </div>
-  );
-}
-
-function ChartCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-xl border border-black/[0.06] px-6 py-5">{children}</div>
-  );
-}
-
-function EmptyMsg() {
-  return <p className="text-sm text-neutral-400">—</p>;
 }
