@@ -22,13 +22,13 @@ type Props = { id: number };
 
 type ServiceRow = ThemeService & { themeName: string };
 
-const ACCENT = "#059669";
-const ACCENT_SOFT = "#f0fdf4";
-const ACCENT_BORDER = "#a7f3d0";
-const INK = "#0f0f0f";
-const MUTED = "#525252";
-const FAINT = "#a3a3a3";
-const LINE = "#e5e5e5";
+const ACCENT = "#266EF1"; // Base Gallery Blue 600
+const ACCENT_SOFT = "#EFF4FE"; // Blue 50
+const INK = "#282828"; // Gray 900
+const MUTED = "#5E5E5E"; // Gray 700
+const FAINT = "#A6A6A6"; // Gray 400
+const LINE = "#E8E8E8"; // Gray 100 / border opaque
+const SUCCESS = "#0E8345"; // Green 600
 
 function parseMarketNumber(v: string): number | null {
   if (!v) return null;
@@ -327,7 +327,7 @@ export default function ReportDetail({ id }: Props) {
             className="hero relative overflow-hidden"
             style={{
               background:
-                "linear-gradient(135deg, #ecfdf5 0%, #ffffff 60%, #ffffff 100%)",
+                `linear-gradient(135deg, ${ACCENT_SOFT} 0%, #ffffff 60%, #ffffff 100%)`,
             }}
           >
             <div
@@ -335,7 +335,7 @@ export default function ReportDetail({ id }: Props) {
               className="absolute inset-0 pointer-events-none opacity-[0.06]"
               style={{
                 background:
-                  "radial-gradient(circle at 100% 0%, #059669 0%, transparent 55%)",
+                  `radial-gradient(circle at 100% 0%, ${ACCENT} 0%, transparent 55%)`,
               }}
             />
             <div className="relative">

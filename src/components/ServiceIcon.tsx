@@ -11,22 +11,24 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+// Base Gallery 500 shades
+const INITIALS_PALETTE = [
+  "#009A51", // Green
+  "#068BEE", // Blue
+  "#A964F7", // Purple
+  "#E142BC", // Magenta
+  "#E65300", // Orange
+  "#0095A4", // Teal
+  "#5B9500", // Lime
+  "#C46E00", // Amber
+  "#F83446", // Red
+  "#B97502", // Yellow
+];
+
 function bgColor(name: string): string {
-  const palette = [
-    "bg-emerald-500",
-    "bg-sky-500",
-    "bg-violet-500",
-    "bg-pink-500",
-    "bg-orange-500",
-    "bg-lime-500",
-    "bg-cyan-500",
-    "bg-amber-500",
-    "bg-red-500",
-    "bg-indigo-500",
-  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return palette[Math.abs(hash) % palette.length];
+  return INITIALS_PALETTE[Math.abs(hash) % INITIALS_PALETTE.length];
 }
 
 function resolverUrl(service: ThemeService): string | null {
@@ -83,8 +85,8 @@ export default function ServiceIcon({ service, size = 32, className }: Props) {
 
   return (
     <div
-      style={dim}
-      className={`rounded-md grid place-items-center text-white font-bold ${bgColor(service.name)} ${className ?? ""}`}
+      style={{ ...dim, background: bgColor(service.name) }}
+      className={`rounded-md grid place-items-center text-white font-bold ${className ?? ""}`}
     >
       <span style={{ fontSize: Math.max(12, size * 0.4) }}>{initials(service.name)}</span>
     </div>

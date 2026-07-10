@@ -14,9 +14,12 @@ import {
 import type { WeeklyReportSummary } from "@/lib/types";
 import Logo from "./Logo";
 
-const ACCENT = "#059669";
-const INK = "#0f0f0f";
-const LINE = "#e5e5e5";
+const ACCENT = "#266EF1"; // Base Gallery Blue 600
+const ACCENT_SOFT = "#EFF4FE"; // Blue 50
+const INK = "#282828"; // Gray 900
+const LINE = "#E8E8E8"; // Gray 100 / border opaque
+const SUCCESS = "#0E8345"; // Green 600
+const DANGER = "#DE1135"; // Red 600
 
 function formatDateLong(unix: number): string {
   const d = new Date(unix * 1000);
@@ -289,7 +292,7 @@ function HeroLatest({ report: r }: { report: WeeklyReportSummary }) {
         className="absolute inset-0 pointer-events-none opacity-[0.04]"
         style={{
           background:
-            "radial-gradient(circle at 100% 0%, #059669 0%, transparent 60%)",
+            `radial-gradient(circle at 100% 0%, ${ACCENT} 0%, transparent 60%)`,
         }}
       />
       <div className="relative">
@@ -355,15 +358,11 @@ function DeltaKpi({
   const positive = (delta ?? 0) > 0;
   const negative = (delta ?? 0) < 0;
   const badgeBg = positive
-    ? "rgba(5, 150, 105, 0.10)"
+    ? "#EAF6ED" // Green 50
     : negative
-      ? "rgba(220, 38, 38, 0.08)"
-      : "rgba(15, 23, 42, 0.05)";
-  const badgeColor = positive
-    ? ACCENT
-    : negative
-      ? "#dc2626"
-      : "#64748b";
+      ? "#FFF0EE" // Red 50
+      : "#F3F3F3"; // Gray 50
+  const badgeColor = positive ? SUCCESS : negative ? DANGER : "#727272";
   return (
     <div className="card">
       <div className="text-xs text-neutral-500">{label}</div>
