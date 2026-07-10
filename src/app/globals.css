@@ -17,7 +17,8 @@
   /* accent (Base Gallery Blue) */
   --accent: #266EF1;
   --accent-hover: #175BCC;
-  --accent-soft: #EFF4FE;
+  --accent-soft: #DEE9FE; /* Blue 100 — visible tint against page bg */
+  --accent-tint: #EFF4FE; /* Blue 50 — for subtle gradients only */
   --accent-ring: rgba(38, 110, 241, 0.18);
 
   /* semantic (Base Gallery 600) */

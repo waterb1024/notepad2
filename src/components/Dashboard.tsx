@@ -15,7 +15,6 @@ import type { WeeklyReportSummary } from "@/lib/types";
 import Logo from "./Logo";
 
 const ACCENT = "#266EF1"; // Base Gallery Blue 600
-const ACCENT_SOFT = "#EFF4FE"; // Blue 50
 const INK = "#282828"; // Gray 900
 const LINE = "#E8E8E8"; // Gray 100 / border opaque
 const SUCCESS = "#0E8345"; // Green 600

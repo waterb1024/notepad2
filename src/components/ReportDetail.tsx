@@ -23,7 +23,7 @@ type Props = { id: number };
 type ServiceRow = ThemeService & { themeName: string };
 
 const ACCENT = "#266EF1"; // Base Gallery Blue 600
-const ACCENT_SOFT = "#EFF4FE"; // Blue 50
+const ACCENT_SOFT = "#DEE9FE"; // Blue 100 — visible tint against slate page bg
 const INK = "#282828"; // Gray 900
 const MUTED = "#5E5E5E"; // Gray 700
 const FAINT = "#A6A6A6"; // Gray 400
