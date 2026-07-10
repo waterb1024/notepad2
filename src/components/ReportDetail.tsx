@@ -532,7 +532,7 @@ export default function ReportDetail({ id }: Props) {
               <div className="text-xs font-semibold tracking-wide" style={{ color: ACCENT }}>
                 한국 시장 맥락
               </div>
-              <p className="text-lg text-neutral-800 mt-3 leading-relaxed headline-tight">
+              <p className="text-base md:text-lg text-neutral-800 mt-3 leading-relaxed headline-tight">
                 {data.marketSize.koreaContext}
               </p>
             </div>
