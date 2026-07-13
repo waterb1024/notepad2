@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import type { ProductHuntResearchData, WeeklyReportSummary } from "@/lib/types";
+import {
+  isReportSource,
+  type ReportSource,
+  type ResearchData,
+  type WeeklyReportSummary,
+} from "@/lib/types";
 
-function emptyData(): ProductHuntResearchData {
+function emptyData(): ResearchData {
   return {
     collectionSummary: "",
     themes: [],
@@ -13,19 +18,32 @@ function emptyData(): ProductHuntResearchData {
   };
 }
 
-export async function GET() {
-  const { rows } = await db.execute({
-    sql: `SELECT id, report_date, data, created_at
-          FROM weekly_reports
-          ORDER BY report_date DESC, created_at DESC
-          LIMIT 200`,
-    args: [],
-  });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const sourceParam = searchParams.get("source");
+  const filterSource: ReportSource | null = isReportSource(sourceParam) ? sourceParam : null;
+
+  const { rows } = filterSource
+    ? await db.execute({
+        sql: `SELECT id, source, report_date, data, created_at
+              FROM weekly_reports
+              WHERE source = ?
+              ORDER BY report_date DESC, created_at DESC
+              LIMIT 200`,
+        args: [filterSource],
+      })
+    : await db.execute({
+        sql: `SELECT id, source, report_date, data, created_at
+              FROM weekly_reports
+              ORDER BY report_date DESC, created_at DESC
+              LIMIT 200`,
+        args: [],
+      });
 
   const summaries: WeeklyReportSummary[] = rows.map((r) => {
-    let data: ProductHuntResearchData;
+    let data: ResearchData;
     try {
-      data = JSON.parse(String(r.data)) as ProductHuntResearchData;
+      data = JSON.parse(String(r.data)) as ResearchData;
     } catch {
       data = emptyData();
     }
@@ -36,8 +54,11 @@ export async function GET() {
     const fastestTitle = fastest
       ? data.top5Opportunities.find((o) => o.rank === fastest.targetRank)?.title ?? null
       : null;
+    const rawSource = String(r.source ?? "product_hunt");
+    const source: ReportSource = isReportSource(rawSource) ? rawSource : "product_hunt";
     return {
       id: Number(r.id),
+      source,
       report_date: String(r.report_date),
       collectionSummary: data.collectionSummary ?? "",
       themeCount: themes.length,

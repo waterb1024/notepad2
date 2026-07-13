@@ -1,3 +1,27 @@
+export type ReportSource = "product_hunt" | "indie_hackers" | "hacker_news";
+
+export const REPORT_SOURCES: ReadonlyArray<ReportSource> = [
+  "product_hunt",
+  "indie_hackers",
+  "hacker_news",
+];
+
+export function isReportSource(v: unknown): v is ReportSource {
+  return typeof v === "string" && (REPORT_SOURCES as readonly string[]).includes(v);
+}
+
+export const SOURCE_LABEL: Record<ReportSource, string> = {
+  product_hunt: "Product Hunt",
+  indie_hackers: "Indie Hackers",
+  hacker_news: "Hacker News",
+};
+
+export const SOURCE_SHORT: Record<ReportSource, string> = {
+  product_hunt: "PH",
+  indie_hackers: "IH",
+  hacker_news: "HN",
+};
+
 export type ThemeService = {
   name: string;
   tag: string;
@@ -48,7 +72,7 @@ export type FastestValidation = {
   rationale: string;
 };
 
-export type ProductHuntResearchData = {
+export type ResearchData = {
   collectionSummary: string;
   themes: ResearchTheme[];
   commonalities: ResearchCommonality[];
@@ -60,14 +84,16 @@ export type ProductHuntResearchData = {
 
 export type WeeklyReport = {
   id: number;
+  source: ReportSource;
   report_date: string;
-  data: ProductHuntResearchData;
+  data: ResearchData;
   created_at: number;
   updated_at: number;
 };
 
 export type WeeklyReportSummary = {
   id: number;
+  source: ReportSource;
   report_date: string;
   collectionSummary: string;
   themeCount: number;

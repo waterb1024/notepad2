@@ -1,6 +1,6 @@
-# Prism 주간 리서치 자동화 프롬프트
+# Prism 주간 리서치 — Product Hunt
 
-Claude Code 스케줄 에이전트가 매주 이 프롬프트를 실행하도록 등록. 원본 프롬프트를 웹사이트 스키마(`ProductHuntResearchData`)에 맞게 재구성.
+Claude Code 스케줄 에이전트가 매주 이 프롬프트를 실행하도록 등록. `ResearchData` 스키마 + `source: "product_hunt"` 로 인게스트.
 
 ## 실행 프롬프트
 
@@ -32,11 +32,12 @@ Claude Code 스케줄 에이전트가 매주 이 프롬프트를 실행하도록
 7. Top 5 중 가장 빠르게 검증할 수 있는 항목 하나를 `fastestValidation` 으로 선정하고 근거를 씁니다.
 
 **출력 스키마 (JSON)**
-전체 데이터는 아래 스키마에 정확히 맞춰 만듭니다. TypeScript 정의는 다음과 같습니다:
+전체 데이터는 아래 스키마에 정확히 맞춰 만듭니다. TypeScript 정의:
 
 ```typescript
 {
-  report_date?: string;  // "YYYY-MM-DD", 생략 시 서버가 오늘 날짜 사용
+  source: "product_hunt";  // 필수 — 소스 구분자
+  report_date?: string;    // "YYYY-MM-DD", 생략 시 서버가 오늘 날짜 사용
   collectionSummary: string;  // 이번 주 수집 요약 2~3문장
   themes: Array<{
     name: string;
@@ -51,19 +52,10 @@ Claude Code 스케줄 에이전트가 매주 이 프롬프트를 실행하도록
       iconUrl?: string;
     }>;
   }>;
-  commonalities: Array<{
-    order: number;
-    headline: string;
-    elaboration: string;
-  }>;
+  commonalities: Array<{ order: number; headline: string; elaboration: string }>;
   marketSize: {
-    segments: Array<{
-      name: string;
-      size2024: string;  // "$12B" 또는 "$5.4B" 형식
-      size2030: string;
-      cagr?: string;  // "18%"
-    }>;
-    koreaContext: string;  // 한국 시장 맥락 2~3문장
+    segments: Array<{ name: string; size2024: string; size2030: string; cagr?: string }>;
+    koreaContext: string;
   };
   top5Opportunities: Array<{
     rank: number;
@@ -75,17 +67,12 @@ Claude Code 스케줄 에이전트가 매주 이 프롬프트를 실행하도록
     description?: string;
     relatedServices?: string[];
   }>;
-  fastestValidation?: {
-    targetRank: number;
-    rationale: string;
-  };
+  fastestValidation?: { targetRank: number; rationale: string };
   notes?: string;
 }
 ```
 
 **전송**
-완성된 JSON 을 다음 curl 로 전송합니다 (INGEST_API_KEY 는 환경변수):
-
 ```bash
 curl -X POST https://<DEPLOY_URL>/api/reports/ingest \
   -H "Authorization: Bearer $INGEST_API_KEY" \
@@ -97,24 +84,14 @@ curl -X POST https://<DEPLOY_URL>/api/reports/ingest \
 
 **주의사항**
 - 모든 텍스트 필드는 한국어. 서비스 이름·태그는 원문 유지.
-- 시장 규모 숫자는 반드시 신뢰 가능한 업계 리포트 근거를 기반으로 (Grand View Research, Statista, McKinsey, IDC 등).
-- 이모지 사용 금지 (프로덕션 톤 유지).
-- Top 5 는 1인 개발자 실행 가능성 중심 — 대형 자본·팀 필요한 아이디어는 배제.
+- 시장 규모 숫자는 반드시 신뢰 가능한 업계 리포트 근거 기반 (Grand View Research, Statista, McKinsey, IDC 등).
+- 이모지 사용 금지.
+- Top 5 는 1인 개발자 실행 가능성 중심.
 ```
 
 ## 등록 방법
 
-배포 URL 확정된 뒤 아래 명령어를 Claude Code 에서 실행:
-
 ```
-/schedule create "0 9 * * MON" "매주 월요일 09시 KST — Prism 주간 리서치" \
-  --prompt-file scripts/weekly-research-prompt.md
+/schedule create "0 9 * * MON" "매주 월요일 09시 KST — Prism Product Hunt 리서치" \
+  --prompt-file scripts/prompts/product-hunt-research-prompt.md
 ```
-
-(또는 대화형으로 `/schedule` 실행 후 안내에 따라 등록)
-
-## 실행 확인
-
-- Render 배포 시 `INGEST_API_KEY` 환경변수 등록 필수
-- 첫 실행 후 대시보드에서 새 리포트 카드 확인
-- 실패 시 Render 로그 (401/503 이면 env 미설정, 500 이면 DB 문제)

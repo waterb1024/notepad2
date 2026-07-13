@@ -15,8 +15,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { MarketSegment, ThemeService, WeeklyReport } from "@/lib/types";
+import {
+  SOURCE_LABEL,
+  type MarketSegment,
+  type ReportSource,
+  type ThemeService,
+  type WeeklyReport,
+} from "@/lib/types";
 import ServiceIcon from "./ServiceIcon";
+
+const SOURCE_ACCENT: Record<ReportSource, { fg: string; bg: string }> = {
+  product_hunt: { fg: "#C54600", bg: "#FFF0E9" },
+  indie_hackers: { fg: "#266EF1", bg: "#EFF4FE" },
+  hacker_news: { fg: "#A95F03", bg: "#FFF1E1" },
+};
 
 type Props = { id: number };
 
@@ -309,11 +321,22 @@ export default function ReportDetail({ id }: Props) {
 
       <article className="max-w-6xl mx-auto px-5 md:px-8 py-10 section-stack">
         <div>
-          <div className="eyebrow tabular-nums" style={{ color: ACCENT }}>
-            주간 리포트 · {report.report_date}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{
+                background: SOURCE_ACCENT[report.source].bg,
+                color: SOURCE_ACCENT[report.source].fg,
+              }}
+            >
+              {SOURCE_LABEL[report.source]}
+            </span>
+            <div className="eyebrow tabular-nums" style={{ color: ACCENT }}>
+              주간 리포트 · {report.report_date}
+            </div>
           </div>
           <h1 className="display text-3xl md:text-4xl text-neutral-900 mt-3">
-            주간 Product Hunt 리서치
+            주간 {SOURCE_LABEL[report.source]} 리서치
           </h1>
           {data.collectionSummary && (
             <p className="text-base text-neutral-700 mt-5 leading-relaxed max-w-3xl">

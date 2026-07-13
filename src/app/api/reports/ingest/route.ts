@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import type {
-  MarketSize,
-  ProductHuntResearchData,
-  ResearchCommonality,
-  ResearchOpportunity,
-  ResearchTheme,
-  FastestValidation,
+import {
+  isReportSource,
+  type MarketSize,
+  type ReportSource,
+  type ResearchData,
+  type ResearchCommonality,
+  type ResearchOpportunity,
+  type ResearchTheme,
+  type FastestValidation,
 } from "@/lib/types";
 
-type IngestBody = Partial<ProductHuntResearchData> & { report_date?: string };
+type IngestBody = Partial<ResearchData> & {
+  report_date?: string;
+  source?: string;
+};
 
 function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -88,7 +93,7 @@ function normalizeValidation(v: unknown): FastestValidation | undefined {
   return { targetRank: fv.targetRank, rationale: fv.rationale };
 }
 
-function normalize(body: IngestBody): ProductHuntResearchData {
+function normalize(body: IngestBody): ResearchData {
   return {
     collectionSummary: typeof body.collectionSummary === "string" ? body.collectionSummary : "",
     themes: normalizeThemes(body.themes),
@@ -122,20 +127,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
+  const source: ReportSource = isReportSource(body.source) ? body.source : "product_hunt";
   const reportDate = body.report_date && isValidDate(body.report_date) ? body.report_date : todayYmd();
   const data = normalize(body);
   const dataJson = JSON.stringify(data);
 
   const result = await db.execute({
-    sql: `INSERT INTO weekly_reports (report_date, data)
-          VALUES (?, ?)
-          RETURNING id, report_date, created_at, updated_at`,
-    args: [reportDate, dataJson],
+    sql: `INSERT INTO weekly_reports (source, report_date, data)
+          VALUES (?, ?, ?)
+          RETURNING id, source, report_date, created_at, updated_at`,
+    args: [source, reportDate, dataJson],
   });
 
   const row = result.rows[0];
   return NextResponse.json({
     id: Number(row.id),
+    source: String(row.source),
     report_date: String(row.report_date),
     created_at: Number(row.created_at),
     updated_at: Number(row.updated_at),

@@ -11,8 +11,36 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { WeeklyReportSummary } from "@/lib/types";
+import {
+  REPORT_SOURCES,
+  SOURCE_LABEL,
+  SOURCE_SHORT,
+  type ReportSource,
+  type WeeklyReportSummary,
+} from "@/lib/types";
 import Logo from "./Logo";
+
+type SourceFilter = ReportSource | "all";
+
+const SOURCE_TAB_LABEL: Record<SourceFilter, string> = {
+  all: "전체",
+  product_hunt: SOURCE_SHORT.product_hunt,
+  indie_hackers: SOURCE_SHORT.indie_hackers,
+  hacker_news: SOURCE_SHORT.hacker_news,
+};
+
+const SOURCE_TAB_FULL: Record<SourceFilter, string> = {
+  all: "전체 소스",
+  product_hunt: SOURCE_LABEL.product_hunt,
+  indie_hackers: SOURCE_LABEL.indie_hackers,
+  hacker_news: SOURCE_LABEL.hacker_news,
+};
+
+const SOURCE_ACCENT: Record<ReportSource, { fg: string; bg: string }> = {
+  product_hunt: { fg: "#C54600", bg: "#FFF0E9" }, // Orange 600 / 50
+  indie_hackers: { fg: "#266EF1", bg: "#EFF4FE" }, // Blue 600 / 50
+  hacker_news: { fg: "#A95F03", bg: "#FFF1E1" }, // Amber 600 / 50
+};
 
 const ACCENT = "#266EF1"; // Base Gallery Blue 600
 const INK = "#282828"; // Gray 900
@@ -36,6 +64,7 @@ function daysAgo(unix: number): string {
 export default function Dashboard() {
   const [reports, setReports] = useState<WeeklyReportSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/reports");
@@ -50,7 +79,27 @@ export default function Dashboard() {
     })();
   }, [refresh]);
 
+  const filteredReports = useMemo(() => {
+    if (!reports) return null;
+    if (sourceFilter === "all") return reports;
+    return reports.filter((r) => r.source === sourceFilter);
+  }, [reports, sourceFilter]);
+
+  const sourceCounts = useMemo(() => {
+    const counts: Record<SourceFilter, number> = {
+      all: 0,
+      product_hunt: 0,
+      indie_hackers: 0,
+      hacker_news: 0,
+    };
+    if (!reports) return counts;
+    counts.all = reports.length;
+    for (const r of reports) counts[r.source] = (counts[r.source] ?? 0) + 1;
+    return counts;
+  }, [reports]);
+
   const aggregate = useMemo(() => {
+    const reports = filteredReports;
     if (!reports) return null;
     const sorted = [...reports].sort((a, b) => b.report_date.localeCompare(a.report_date));
     const latest = sorted[0] ?? null;
@@ -107,11 +156,12 @@ export default function Dashboard() {
     };
   }, [reports]);
 
-  if (loading || !reports || !aggregate) {
+  if (loading || !reports || !filteredReports || !aggregate) {
     return <DashboardSkeleton />;
   }
 
-  const rest = reports.slice(1);
+  const rest = filteredReports.slice(1);
+  const tabOrder: SourceFilter[] = ["all", ...REPORT_SOURCES];
 
   return (
     <main className="min-h-[100dvh]">
@@ -124,6 +174,40 @@ export default function Dashboard() {
             Weekly Research
           </span>
         </div>
+        <div className="max-w-6xl mx-auto px-5 md:px-8 pb-3">
+          <div
+            role="tablist"
+            aria-label="소스 필터"
+            className="flex items-center gap-1 overflow-x-auto -mx-1 px-1"
+          >
+            {tabOrder.map((s) => {
+              const active = sourceFilter === s;
+              const count = sourceCounts[s] ?? 0;
+              return (
+                <button
+                  key={s}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSourceFilter(s)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap"
+                  style={
+                    active
+                      ? { background: INK, color: "#ffffff" }
+                      : { background: "transparent", color: "#5E5E5E" }
+                  }
+                >
+                  <span>{SOURCE_TAB_LABEL[s]}</span>
+                  <span
+                    className="tabular-nums text-[10px]"
+                    style={{ opacity: active ? 0.75 : 0.55 }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 section-stack">
@@ -131,7 +215,11 @@ export default function Dashboard() {
           <HeroLatest report={aggregate.latest} />
         ) : (
           <div className="card text-center py-16">
-            <div className="text-lg font-semibold text-neutral-900">아직 리포트가 없어요</div>
+            <div className="text-lg font-semibold text-neutral-900">
+              {sourceFilter === "all"
+                ? "아직 리포트가 없어요"
+                : `${SOURCE_TAB_FULL[sourceFilter]} 리포트가 없어요`}
+            </div>
             <p className="text-sm text-neutral-500 mt-2">
               스케줄된 원격 에이전트가 매주 리포트를 생성합니다.
             </p>
@@ -280,6 +368,18 @@ export default function Dashboard() {
 
 /* ---- subcomponents ---- */
 
+function SourceBadge({ source }: { source: ReportSource }) {
+  const tone = SOURCE_ACCENT[source];
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: tone.bg, color: tone.fg }}
+    >
+      {SOURCE_LABEL[source]}
+    </span>
+  );
+}
+
 function HeroLatest({ report: r }: { report: WeeklyReportSummary }) {
   return (
     <Link
@@ -303,6 +403,7 @@ function HeroLatest({ report: r }: { report: WeeklyReportSummary }) {
             />
             최신 리포트
           </span>
+          <SourceBadge source={r.source} />
           <span className="text-xs text-neutral-500 tabular-nums">
             {r.report_date} · {daysAgo(r.created_at)}
           </span>
@@ -564,11 +665,14 @@ function RankedList({ data }: { data: Array<{ label: string; count: number }> })
 function ReportCardLink({ r }: { r: WeeklyReportSummary }) {
   return (
     <Link href={`/report/${r.id}`} className="card card-hover block group">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold tabular-nums" style={{ color: ACCENT }}>
-          {r.report_date}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <SourceBadge source={r.source} />
+          <div className="text-xs font-semibold tabular-nums" style={{ color: ACCENT }}>
+            {r.report_date}
+          </div>
         </div>
-        <div className="text-xs text-neutral-400">{daysAgo(r.created_at)}</div>
+        <div className="text-xs text-neutral-400 shrink-0">{daysAgo(r.created_at)}</div>
       </div>
       <p className="text-sm text-neutral-800 mt-3 leading-relaxed line-clamp-3 min-h-[3.75rem]">
         {r.collectionSummary || "요약 없음"}

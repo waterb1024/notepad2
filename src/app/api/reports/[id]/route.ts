@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import type { ProductHuntResearchData, WeeklyReport } from "@/lib/types";
+import {
+  isReportSource,
+  type ReportSource,
+  type ResearchData,
+  type WeeklyReport,
+} from "@/lib/types";
 
 export async function GET(
   _req: Request,
@@ -13,22 +18,26 @@ export async function GET(
   }
 
   const { rows } = await db.execute({
-    sql: `SELECT id, report_date, data, created_at, updated_at
+    sql: `SELECT id, source, report_date, data, created_at, updated_at
           FROM weekly_reports WHERE id = ?`,
     args: [id],
   });
   const r = rows[0];
   if (!r) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  let data: ProductHuntResearchData;
+  let data: ResearchData;
   try {
-    data = JSON.parse(String(r.data)) as ProductHuntResearchData;
+    data = JSON.parse(String(r.data)) as ResearchData;
   } catch {
     return NextResponse.json({ error: "corrupt_data" }, { status: 500 });
   }
 
+  const rawSource = String(r.source ?? "product_hunt");
+  const source: ReportSource = isReportSource(rawSource) ? rawSource : "product_hunt";
+
   const report: WeeklyReport = {
     id: Number(r.id),
+    source,
     report_date: String(r.report_date),
     data,
     created_at: Number(r.created_at),
