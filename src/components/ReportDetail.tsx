@@ -729,18 +729,16 @@ export default function ReportDetail({ id }: Props) {
                   .slice()
                   .sort((a, b) => a.rank - b.rank)
                   .map((o) => {
-                    const isTop = o.rank === 1;
                     return (
                       <div
                         key={o.rank}
                         className="card card-hover"
-                        style={isTop ? { background: ACCENT_SOFT } : undefined}
                       >
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                           <div className="flex items-center gap-3">
                             <span
                               className="inline-flex items-center justify-center w-9 h-9 rounded-full text-white text-sm font-bold tabular-nums shrink-0"
-                              style={{ background: isTop ? ACCENT : INK }}
+                              style={{ background: INK }}
                             >
                               {o.rank}
                             </span>
@@ -783,7 +781,7 @@ export default function ReportDetail({ id }: Props) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
                           <div
                             className="rounded-lg p-4"
-                            style={{ background: isTop ? "#ffffff" : "#f8fafc" }}
+                            style={{ background: "#f8fafc" }}
                           >
                             <div
                               className="text-xs font-semibold uppercase tracking-wide"
@@ -797,7 +795,7 @@ export default function ReportDetail({ id }: Props) {
                           </div>
                           <div
                             className="rounded-lg p-4"
-                            style={{ background: isTop ? "#ffffff" : "#f8fafc" }}
+                            style={{ background: "#f8fafc" }}
                           >
                             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                               한국 시장 공백
